@@ -20,7 +20,7 @@ import { SelectionPopover } from './selection-tools.js'
 import { ImageViewer } from './image-viewer.js'
 import { formatLanguageMap, formatAuthors, makeBookInfoWindow } from './book-info.js'
 import { themes, invertTheme, themeCssProvider } from './themes.js'
-import { dataStore } from './data.js'
+import { dataStore, BookData } from './data.js'
 
 // for use in the WebView
 const uiText = {
@@ -443,6 +443,62 @@ const makeIdentifier = file => {
         console.warn(e)
         return null
     }
+}
+
+export const importFiles = files => {
+    let currentFile
+    let resolveFile, rejectFile
+    const webView = utils.connect(new WebView({
+        settings: new WebKit.Settings({
+            enable_write_console_messages_to_stdout: true,
+            enable_html5_database: false,
+            enable_html5_local_storage: false,
+        }),
+    }), {
+        'run-file-chooser': (_, req) =>
+            (req.select_files([encodeURI(currentFile.get_path())]), true),
+    })
+    const save = async book => {
+        book.metadata.identifier ||= makeIdentifier(currentFile)
+        const { identifier } = book.metadata
+        if (!identifier) throw new Error('Could not get identifier')
+        const data = new BookData(identifier)
+        data.storage.set('metadata', book.metadata, false)
+        data.saveURI(currentFile)
+        const cover = await webView.exec('reader.getCover').then(utils.base64ToPixbuf)
+        if (cover) data.saveCover(cover)
+        data.storage.saveNow()
+    }
+    const open = async file => {
+        currentFile = file
+        await webView.exec('loadFile')
+        await new Promise((resolve, reject) => {
+            resolveFile = resolve
+            rejectFile = reject
+        })
+    }
+    return new Promise((resolve, reject) => {
+        webView.registerHandler('viewer', payload => {
+            if (payload.type === 'ready') webView.exec('initImport')
+                .then(async () => {
+                    let results = []
+                    for (const file of files) {
+                        const result = open(file)
+                            .then(() => true)
+                            .catch(e => new Error(e, { cause: e }))
+                        results.push([file, await result])
+                    }
+                    resolve(results)
+                })
+                .catch(reject)
+            else if (payload.type === 'book-error') rejectFile(payload.id)
+            else if (payload.type === 'book-ready')
+                save(payload.book).then(resolveFile).catch(rejectFile)
+        })
+        webView.loadURI('foliate:///reader/reader.html').catch(reject)
+    }).finally(() => {
+        webView.run_dispose()
+    })
 }
 
 export const BookViewer = GObject.registerClass({
