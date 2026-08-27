@@ -7,77 +7,12 @@ import Gdk from 'gi://Gdk'
 import GdkPixbuf from 'gi://GdkPixbuf'
 import Pango from 'gi://Pango'
 import cairo from 'gi://cairo'
-import { gettext as _ } from 'gettext'
+import { gettext as _, ngettext } from 'gettext'
 import * as utils from './utils.js'
 import * as format from './format.js'
 import { exportAnnotations } from './annotations.js'
 import { formatLanguageMap, formatAuthors, makeBookInfoWindow } from './book-info.js'
-
-import WebKit from 'gi://WebKit'
-import { WebView } from './webview.js'
-
-const defaultCatalogs = [
-    {
-        title: 'Feedbooks',
-        uri: 'https://catalog.feedbooks.com/catalog/index.json',
-    },
-    {
-        title: 'Internet Archive',
-        uri: 'https://bookserver.archive.org/catalog/',
-    },
-    {
-        title: 'Manybooks',
-        uri: 'https://manybooks.net/opds/',
-    },
-    {
-        title: 'Project Gutenberg',
-        uri: 'https://m.gutenberg.org/ebooks.opds/',
-    },
-    {
-        title: 'Standard Ebooks',
-        uri: 'https://standardebooks.org/feeds/opds',
-    },
-    {
-        title: 'unglue.it',
-        uri: 'https://unglue.it/api/opds/',
-    },
-]
-
-const uiText = {
-    loading: _('Loading'),
-    error: _('Failed to Load'),
-    reload: _('Reload'),
-    cancel: _('Cancel'),
-    viewCollection: _('See All'),
-    search: _('Search'),
-    filter: _('Filter'),
-    acq: {
-        'http://opds-spec.org/acquisition': _('Download'),
-        'http://opds-spec.org/acquisition/buy': _('Buy'),
-        'http://opds-spec.org/acquisition/open-access': _('Download'),
-        'preview': _('Preview'),
-        'http://opds-spec.org/acquisition/sample': _('Sample'),
-        'http://opds-spec.org/acquisition/borrow': _('Borrow'),
-        'http://opds-spec.org/acquisition/subscribe': _('Subscribe'),
-    },
-    openAccess: _('Free'),
-    pagination: [
-        _('First'),
-        _('Previous'),
-        _('Next'),
-        _('Last'),
-    ],
-    query: _('Search Terms'),
-    metadata: {
-        title: _('Title'),
-        author: _('Author'),
-        contributor: _('Contributor'),
-        publisher: _('Publisher'),
-        published: _('Published'),
-        language: _('Language'),
-        identifier: _('Identifier'),
-    },
-}
+import { LibraryFoldersDialog, refreshStaleBooks, scanLibraryFolders } from './library-scan.js'
 
 const getURIFromTracker = identifier => {
     const connection = imports.gi.Tracker.SparqlConnection.bus_new(
@@ -480,176 +415,6 @@ GObject.registerClass({
     }
 })
 
-GObject.registerClass({
-    GTypeName: 'FoliateOPDSView',
-    Signals: {
-        'state-changed': { param_types: [GObject.TYPE_JSOBJECT] },
-    },
-}, class extends Adw.Bin {
-    #downloads = new Map()
-    #state
-    constructor(params) {
-        super(params)
-        this.actionGroup = utils.addMethods(this, {
-            actions: [
-                'back', 'forward', 'search',
-            ],
-        })
-        for (const action of ['back', 'forward', 'search'])
-            this.actionGroup.lookup_action(action).enabled = false
-    }
-    init() {
-        const webView = new WebView({
-            settings: new WebKit.Settings({
-                enable_write_console_messages_to_stdout: true,
-                enable_developer_extras: true,
-                enable_back_forward_navigation_gestures: false,
-                enable_hyperlink_auditing: false,
-                enable_html5_database: false,
-                enable_html5_local_storage: false,
-                enable_javascript_markup: false,
-                disable_web_security: true,
-                user_agent: pkg.userAgent,
-            }),
-        })
-        const initFuncs = [
-            webView.provide('formatNumber', format.number),
-            webView.provide('formatMime', format.mime),
-            webView.provide('formatPrice',
-                price => price ? format.price(price.currency, price.value) : ''),
-            webView.provide('formatLanguage', format.language),
-            webView.provide('formatDate', format.date),
-            webView.provide('formatList', format.list),
-            webView.provide('matchLocales', format.matchLocales),
-        ]
-        utils.connect(webView, {
-            'context-menu': () => false,
-            'load-changed': (webView, event) => {
-                if (event === WebKit.LoadEvent.FINISHED) {
-                    const lang = format.locales[0].baseName
-                    webView.run(`globalThis.uiText = ${JSON.stringify(uiText)}
-                    document.documentElement.lang = "${lang}"
-                    import('./main.js').catch(e => console.error(e))`)
-                        .catch(e => console.error(e))
-                    for (const f of initFuncs) f()
-
-                    // update after going back/foward
-                    webView.exec('updateState')
-                        // it will fail when the page first loads but that's ok
-                        .catch(e => console.debug(e))
-                }
-            },
-            'decide-policy': (_, decision, type) => {
-                switch (type) {
-                    case WebKit.PolicyDecisionType.NAVIGATION_ACTION:
-                    case WebKit.PolicyDecisionType.NEW_WINDOW_ACTION: {
-                        const { uri } = decision.navigation_action.get_request()
-                        if (!uri.startsWith('foliate-opds:') && !uri.startsWith('blob:')
-                        && uri !== 'about:blank') {
-                            decision.ignore()
-                            new Gtk.UriLauncher({ uri }).launch(this.root, null, null)
-                            return true
-                        }
-                    }
-                }
-            },
-        })
-        webView.registerHandler('opds', payload => {
-            switch (payload.type) {
-                case 'download': this.download(payload); break
-                case 'cancel':
-                    this.#downloads.get(payload.token)?.deref()?.cancel()
-                    break
-                case 'state':
-                    this.#state = payload.state
-                    this.actionGroup.lookup_action('search').enabled =
-                        !!this.#state?.search && !!this.#state?.searchEnabled
-                    this.emit('state-changed', this.#state)
-                    break
-            }
-        })
-        webView.get_back_forward_list().connect('changed', () => {
-            this.actionGroup.lookup_action('back').enabled = webView.can_go_back()
-            this.actionGroup.lookup_action('forward').enabled = webView.can_go_forward()
-        })
-        webView.set_background_color(new Gdk.RGBA())
-        this.child = webView
-    }
-    load(url, isSearch) {
-        this.actionGroup.lookup_action('search').enabled = false
-        if (!this.child) this.init()
-        if (isSearch && url === '#search') {
-            this.child.run("location = location.href.split('#')[0] + '#search'")
-                .then(() => this.child.grab_focus())
-                .catch(e => console.debug(e))
-            return
-        }
-        url = url.replace(/^opds:\/\//, 'http://')
-        if (!url.includes(':')) url = 'http://' + url
-        this.child.loadURI(`foliate-opds:///opds/main.html?url=${encodeURIComponent(url)}`)
-            .then(() => this.child.grab_focus())
-            .catch(e => console.error(e))
-    }
-    back() {
-        this.child.go_back()
-    }
-    forward() {
-        this.child.go_forward()
-    }
-    search() {
-        if (this.#state?.search) this.load(this.#state.search, true)
-    }
-    download({ href, token }) {
-        const webView = this.child
-        new Promise((resolve, reject) => {
-            let file
-            const download = utils.connect(webView.download_uri(href), {
-                'decide-destination': (download, initial_name) => {
-                    new Gtk.FileDialog({ initial_name })
-                        .save(this.root, null, (dialog, res) => {
-                            try {
-                                file = dialog.save_finish(res)
-                                download.set_destination(file.get_path())
-                            } catch (e) {
-                                if (e instanceof Gtk.DialogError) console.debug(e)
-                                else console.error(e)
-                                download.cancel()
-                            }
-                        })
-                    return true
-                },
-                'notify::estimated-progress': download => webView.exec('updateProgress',
-                    { progress: download.estimated_progress, token }),
-                'finished': () => {
-                    this.#downloads.delete(token)
-                    webView.exec('finishDownload', { token })
-                    resolve(file)
-                },
-                'failed': (download, error) => {
-                    if (error.code === WebKit.DownloadError.CANCELLED_BY_USER) return
-                    reject(error)
-                },
-            })
-            download.allow_overwrite = true
-            this.#downloads.set(token, new WeakRef(download))
-        })
-            .then(file => {
-                if (file) new Gtk.FileLauncher({ file, always_ask: true })
-                    .launch(this.root, null, null)
-            })
-            .catch(e => {
-                console.error(e)
-                this.root.error(_('Download Failed'), _('An error occurred'))
-            })
-    }
-    vfunc_unroot() {
-        this.child?.unparent()
-        this.child?.run_dispose()
-    }
-})
-
-const catalogsStore = new utils.JSONStorage(pkg.datapath('catalogs'), 'catalogs', 2)
-
 const SidebarItem = utils.makeDataClass('FoliateSidebarItem', {
     'type': 'string',
     'icon': 'string',
@@ -662,19 +427,10 @@ const SidebarRow = GObject.registerClass({
     Properties: utils.makeParams({
         'item': 'object',
     }),
-    Signals: {
-        'remove-catalog': { param_types: [GObject.TYPE_OBJECT] },
-    },
 }, class extends Gtk.Box {
     #icon = new Gtk.Image()
     #label = new Gtk.Label({
         ellipsize: Pango.EllipsizeMode.END,
-    })
-    #menu = new Gio.Menu()
-    #popover = new Gtk.PopoverMenu({
-        has_arrow: false,
-        halign: Gtk.Align.START,
-        menu_model: this.#menu,
     })
     constructor(params) {
         super(params)

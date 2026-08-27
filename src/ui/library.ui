@@ -143,12 +143,11 @@
                 </object>
               </child>
               <child>
-                <object class="AdwToolbarView" id="catalog-toolbar-view">
-                  <style><class name="background"/></style>
+                <object class="AdwToolbarView" id="browse-toolbar-view">
                   <child type="top">
                     <object class="AdwHeaderBar">
                       <property name="title-widget">
-                        <object class="GtkLabel">
+                        <object class="GtkLabel" id="browse-title">
                           <property name="single-line-mode">True</property>
                           <property name="ellipsize">end</property>
                           <style><class name="title"/></style>
@@ -162,31 +161,26 @@
                           <property name="visible" bind-source="split-view" bind-property="show-sidebar" bind-flags="sync-create|invert-boolean"/>
                         </object>
                       </child>
-                      <child type="start">
-                        <object class="GtkButton">
-                          <property name="icon-name">go-previous-symbolic</property>
-                          <property name="tooltip-text" translatable="yes">Back</property>
-                          <property name="action-name">catalog.back</property>
-                        </object>
-                      </child>
-                      <child type="start">
-                        <object class="GtkButton">
-                          <property name="icon-name">go-next-symbolic</property>
-                          <property name="tooltip-text" translatable="yes">Forward</property>
-                          <property name="action-name">catalog.forward</property>
-                        </object>
-                      </child>
-                      <child type="end">
-                        <object class="GtkButton" id="catalog-search-button">
-                          <property name="icon-name">edit-find-symbolic</property>
-                          <property name="tooltip-text" translatable="yes">Search</property>
-                          <property name="action-name">catalog.search</property>
-                        </object>
-                      </child>
                     </object>
                   </child>
                   <child>
-                    <object class="FoliateOPDSView" id="opds-view">
+                    <object class="GtkScrolledWindow">
+                      <child>
+                        <object class="AdwClamp">
+                          <child>
+                            <object class="GtkListBox" id="browse-list-box">
+                              <property name="selection-mode">none</property>
+                              <property name="activate-on-single-click">True</property>
+                              <property name="valign">start</property>
+                              <property name="margin-start">12</property>
+                              <property name="margin-end">12</property>
+                              <property name="margin-top">12</property>
+                              <property name="margin-bottom">12</property>
+                              <style><class name="boxed-list"/></style>
+                            </object>
+                          </child>
+                        </object>
+                      </child>
                     </object>
                   </child>
                 </object>

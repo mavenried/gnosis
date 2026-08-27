@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-  <gresource prefix="/com/github/johnfactotum/Foliate">
+  <gresource prefix="/com/github/mavenried/Gnosis">
     <file>annotations.js</file>
     <file>app.js</file>
     <file>book-info.js</file>
     <file>book-viewer.js</file>
     <file>data.js</file>
     <file>format.js</file>
+    <file>gnosis-import.js</file>
     <file>image-viewer.js</file>
     <file>library.js</file>
+    <file>library-scan.js</file>
     <file>navbar.js</file>
     <file>search.js</file>
     <file>selection-tools.js</file>
@@ -29,6 +31,7 @@
     <file>ui/help-overlay.ui</file>
     <file>ui/image-viewer.ui</file>
     <file>ui/import-dialog.ui</file>
+    <file>ui/library-folders-dialog.ui</file>
     <file>ui/library-view.ui</file>
     <file>ui/library.ui</file>
     <file>ui/media-overlay-box.ui</file>
@@ -38,7 +41,8 @@
     <file>ui/view-preferences-window.ui</file>
     <file alias="icons/scalable/actions/bookmark-filled-symbolic.svg">icons/hicolor/scalable/actions/bookmark-filled-symbolic.svg</file>
     <file alias="icons/scalable/actions/funnel-symbolic.svg">icons/hicolor/scalable/actions/funnel-symbolic.svg</file>
-    <file alias="icons/scalable/actions/library-symbolic.svg">icons/hicolor/scalable/actions/library-symbolic.svg</file>
+    <file alias="icons/scalable/actions/gnosis-author-symbolic.svg">icons/hicolor/scalable/actions/gnosis-author-symbolic.svg</file>
+    <file alias="icons/scalable/actions/gnosis-library-symbolic.svg">icons/hicolor/scalable/actions/gnosis-library-symbolic.svg</file>
     <file alias="icons/scalable/actions/pan-down-symbolic.svg">icons/hicolor/scalable/actions/pan-down-symbolic.svg</file>
     <file alias="icons/scalable/actions/pin-symbolic.svg">icons/hicolor/scalable/actions/pin-symbolic.svg</file>
     <file alias="icons/scalable/actions/speedometer-symbolic.svg">icons/hicolor/scalable/actions/speedometer-symbolic.svg</file>
@@ -53,7 +57,6 @@
     <file>foliate-js/fixed-layout.js</file>
     <file>foliate-js/footnotes.js</file>
     <file>foliate-js/mobi.js</file>
-    <file>foliate-js/opds.js</file>
     <file>foliate-js/overlayer.js</file>
     <file>foliate-js/paginator.js</file>
     <file>foliate-js/pdf.js</file>
@@ -257,8 +260,6 @@
     <file compressed="true">foliate-js/vendor/pdfjs/standard_fonts/LiberationSans-BoldItalic.ttf</file>
     <file compressed="true">foliate-js/vendor/pdfjs/standard_fonts/LiberationSans-Italic.ttf</file>
     <file compressed="true">foliate-js/vendor/pdfjs/standard_fonts/LiberationSans-Regular.ttf</file>
-    <file>opds/main.html</file>
-    <file>opds/main.js</file>
     <file>selection-tools/common.css</file>
     <file>selection-tools/translate.html</file>
     <file>selection-tools/wikipedia.html</file>

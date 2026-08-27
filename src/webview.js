@@ -26,7 +26,6 @@ const registerPaths = (name, dirs) => registerScheme(name, req => {
 })
 
 registerPaths('foliate', ['/reader/', '/foliate-js/'])
-registerPaths('foliate-opds', ['/opds/', '/foliate-js/', '/icons/', '/common/'])
 registerPaths('foliate-selection-tool', ['/selection-tools/', '/icons/', '/common/'])
 
 /*

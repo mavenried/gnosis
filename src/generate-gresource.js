@@ -27,7 +27,7 @@ const filter = ({ excludes, endsWith }) => ({ name }) => {
 
 const result = `<?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-  <gresource prefix="/com/github/johnfactotum/Foliate">
+  <gresource prefix="/com/github/mavenried/Gnosis">
 ${[
         ...await getFiles('./', filter({
             excludes: ['generate-gresource.js', 'main.js'],
@@ -43,7 +43,6 @@ ${[
         ...await getFiles('foliate-js/vendor/pdfjs/'),
         ...await getFiles('foliate-js/vendor/pdfjs/cmaps/', null, true),
         ...await getFiles('foliate-js/vendor/pdfjs/standard_fonts/', null, true),
-        ...await getFiles('opds/'),
         ...await getFiles('selection-tools/'),
         ...await getFiles('common/'),
         ...await getFiles('reader/'),
