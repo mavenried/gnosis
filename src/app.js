@@ -10,6 +10,7 @@ import { vprintf } from './format.js'
 import * as utils from './utils.js'
 import { Library } from './library.js'
 import { BookViewer, importFiles } from './book-viewer.js'
+import { findGnosisDatabase, importFromGnosis } from './gnosis-import.js'
 
 const formatVersion = (a, b, c) => `${a ?? '?'}.${b ?? '?'}.${c ?? '?'}`
 
@@ -29,7 +30,7 @@ Session: ${GLib.getenv('XDG_SESSION_DESKTOP') ?? 'UNknown'} (${GLib.getenv('XDG_
 Language: ${GLib.getenv('LANG') ?? 'Unknown'}
 
 Versions:
-- Foliate ${pkg.version}
+- Gnosis ${pkg.version}
 - GJS ${getGJSVersion()}
 - GTK ${getImportVersion(Gtk)}
 - Adwaita ${getImportVersion(imports.gi.Adw)}
@@ -102,6 +103,7 @@ const ApplicationWindow = GObject.registerClass({
             actions: [
                 'open', 'open-or-import',
                 'close', 'show-library', 'show-menu', 'new-window', 'open-copy',
+                'import-from-gnosis',
             ],
             props: ['fullscreened'],
         })
@@ -211,6 +213,43 @@ const ApplicationWindow = GObject.registerClass({
                 if (e instanceof Gtk.DialogError) console.debug(e)
                 else console.error(e)
             }
+        })
+    }
+    importFromGnosis() {
+        const dbPath = findGnosisDatabase()
+        if (!dbPath) {
+            this.error(_('No Legacy Gnosis Library Found'),
+                _('Could not find a gnosis library database on this computer'))
+            return
+        }
+        const dialog = new Adw.AlertDialog({
+            heading: _('Import from Legacy Gnosis?'),
+            body: _('This imports any books from your legacy gnosis library that aren’t already here, along with their reading progress'),
+        })
+        dialog.add_response('cancel', _('_Cancel'))
+        dialog.add_response('import', _('_Import'))
+        dialog.set_response_appearance('import', Adw.ResponseAppearance.SUGGESTED)
+        dialog.present(this)
+        dialog.connect('response', (_dialog, response) => {
+            if (response !== 'import') return
+            this.showLibrary()
+            importFromGnosis(dbPath)
+                .then(({ imported, failed, missing, alreadyPresent }) => {
+                    const parts = [vprintf(ngettext(
+                        'Imported %d book', 'Imported %d books', imported), [imported])]
+                    if (alreadyPresent) parts.push(vprintf(ngettext(
+                        '%d already in library', '%d already in library', alreadyPresent),
+                        [alreadyPresent]))
+                    if (missing) parts.push(vprintf(ngettext(
+                        '%d file missing', '%d files missing', missing), [missing]))
+                    if (failed) parts.push(vprintf(ngettext(
+                        '%d failed', '%d failed', failed), [failed]))
+                    this.add_toast(new Adw.Toast({ title: parts.join(' · ') }))
+                })
+                .catch(e => {
+                    console.error(e)
+                    this.error(_('Import Failed'), `${e}`)
+                })
         })
     }
     showLibrary() {
@@ -431,20 +470,19 @@ export const Application = GObject.registerClass({
             application_name: pkg.localeName,
             application_icon: pkg.name,
             version: pkg.version,
-            comments: _('Read e-books in style'),
-            developer_name: 'John Factotum',
-            developers: ['John Factotum'],
+            comments: _('Read e-books in style — built on Foliate by John Factotum'),
+            developer_name: 'Joseph Chacko',
+            developers: ['Joseph Chacko', 'John Factotum (Foliate)'],
             artists: ['John Factotum', 'Tobias Bernard <tbernard@gnome.org>'],
             // Translators: put your names here, one name per line
             // they will be shown in the "About" dialog
             translator_credits: _('translator-credits'),
             license_type: Gtk.License.GPL_3_0,
-            website: 'https://johnfactotum.github.io/foliate/',
-            issue_url: 'https://github.com/johnfactotum/foliate/issues',
-            support_url: 'https://github.com/johnfactotum/foliate/blob/gtk4/docs/faq.md',
+            website: 'https://github.com/mavenried/gnosis',
+            issue_url: 'https://github.com/mavenried/gnosis/issues',
             debug_info: getDebugInfo(),
         })
-        win.add_link(_('Source Code'), 'https://github.com/johnfactotum/foliate')
+        win.add_link(_('Foliate (upstream)'), 'https://github.com/johnfactotum/foliate')
         win.add_legal_section('foliate-js', null, Gtk.License.MIT_X11, null)
         win.add_legal_section('zip.js',
             'Copyright © 2022 Gildas Lormeau',

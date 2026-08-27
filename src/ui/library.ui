@@ -20,6 +20,10 @@
       <attribute name="label" translatable="yes">Open…</attribute>
       <attribute name="action">win.open</attribute>
     </item>
+    <item>
+      <attribute name="label" translatable="yes">Import from Legacy Gnosis…</attribute>
+      <attribute name="action">win.import-from-gnosis</attribute>
+    </item>
   </section>
   <section>
     <item>
