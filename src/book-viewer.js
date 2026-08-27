@@ -464,9 +464,16 @@ export const importFiles = files => {
         if (!identifier) throw new Error('Could not get identifier')
         const data = new BookData(identifier)
         data.storage.set('metadata', book.metadata, false)
+        // only stamp "added" for a genuinely new book — importFiles() is also
+        // used to refresh existing books (stale-metadata refresh, folder
+        // rescans), which must not reset when it was first added
+        if (data.storage.get('added', null) == null)
+            data.storage.set('added', Date.now(), false)
         data.saveURI(currentFile)
+        const sourceStale = data.isSourceStale(currentFile)
         const cover = await webView.exec('reader.getCover').then(utils.base64ToPixbuf)
-        if (cover) data.saveCover(cover)
+        if (cover) data.saveCover(cover, sourceStale)
+        data.saveSourceFingerprint(currentFile, false)
         data.storage.saveNow()
     }
     const open = async file => {
@@ -849,7 +856,9 @@ export const BookViewer = GObject.registerClass({
             updateBookmarks()
             this.#data.storage.set('metadata', book.metadata)
             this.#data.saveURI(this.#file)
-            if (cover) this.#data.saveCover(cover)
+            const sourceStale = this.#data.isSourceStale(this.#file)
+            if (cover) this.#data.saveCover(cover, sourceStale)
+            this.#data.saveSourceFingerprint(this.#file)
         }
         else await this._view.next()
     }

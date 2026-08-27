@@ -80,11 +80,11 @@ export class BookData {
     #saveBookmarks() {
         this.storage.set('bookmarks', this.bookmarks.export())
     }
-    saveCover(cover) {
+    saveCover(cover, force = false) {
         const settings = utils.settings('library')
         if (!(settings?.get_boolean('show-covers') ?? true)) return
         const path = pkg.cachepath(`${encodeURIComponent(this.key)}.png`)
-        if (Gio.File.new_for_path(path).query_exists(null)) return
+        if (!force && Gio.File.new_for_path(path).query_exists(null)) return
         const width = settings?.get_int('cover-size') ?? 256
         const ratio = width / cover.get_width()
         const scaled = ratio >= 1 ? cover
@@ -98,6 +98,32 @@ export class BookData {
         getURIStore().set(this.key, path.startsWith(homeDir)
             ? path.replace(homeDir, '~')
             : file.get_uri())
+    }
+    // cheap (size + mtime, not a hash) check of whether the source file has
+    // changed since we last extracted its cover/metadata from it, so that a
+    // re-exported/edited EPUB gets its cached cover refreshed automatically
+    isSourceStale(file) {
+        const current = getFingerprint(file)
+        if (!current) return false
+        const stored = this.storage.get('sourceFingerprint', null)
+        return !stored || stored.size !== current.size || stored.mtime !== current.mtime
+    }
+    saveSourceFingerprint(file, save = true) {
+        const fp = getFingerprint(file)
+        if (fp) this.storage.set('sourceFingerprint', fp, save)
+    }
+}
+
+const getFingerprint = file => {
+    try {
+        const info = file.query_info('standard::size,time::modified',
+            Gio.FileQueryInfoFlags.NONE, null)
+        return {
+            size: info.get_size(),
+            mtime: info.get_attribute_uint64('time::modified'),
+        }
+    } catch {
+        return null
     }
 }
 
