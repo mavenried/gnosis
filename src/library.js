@@ -83,11 +83,20 @@ const BookList = GObject.registerClass({
     constructor(params) {
         super(params)
         this.readFile = utils.memoize(utils.readJSONFile)
-        this.readCover = utils.memoize(identifier => {
+        // don't use utils.memoize here: it would cache a failed load (e.g. if
+        // the cover hasn't finished being written yet) as permanently null
+        const coverCache = new Map()
+        this.readCover = identifier => {
+            if (coverCache.has(identifier)) return coverCache.get(identifier)
             const path = pkg.cachepath(`${encodeURIComponent(identifier)}.png`)
-            try { return GdkPixbuf.Pixbuf.new_from_file(path) }
-            catch { return null }
-        })
+            try {
+                const pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
+                coverCache.set(identifier, pixbuf)
+                return pixbuf
+            } catch {
+                return null
+            }
+        }
     }
     loadMore(n) {
         for (let i = 0; i < n; i++) {
