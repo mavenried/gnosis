@@ -523,7 +523,7 @@ export const BookViewer = GObject.registerClass({
         'book-menu-button', 'bookmark-button',
         'view-popover', 'zoom-button',
         'navbar',
-        'library-button', 'pin-button', 'sidebar-stack',
+        'library-button', 'pin-button', 'sidebar-stack', 'header-library-button',
         'contents-stack', 'contents-stack-switcher',
         'toc-view',
         'search-view', 'search-bar', 'search-entry',
@@ -744,7 +744,7 @@ export const BookViewer = GObject.registerClass({
                 'toggle-sidebar', 'toggle-search', 'show-location',
                 'toggle-toc', 'toggle-annotations', 'toggle-bookmarks',
                 'preferences', 'help-overlay', 'show-info', 'bookmark',
-                'export-annotations', 'import-annotations',
+                'export-annotations', 'import-annotations', 'go-back',
             ],
             props: ['fold-sidebar'],
         })
@@ -762,6 +762,7 @@ export const BookViewer = GObject.registerClass({
             '<ctrl>d': 'viewer.bookmark',
             '<alt>comma': 'viewer.preferences',
             '<ctrl>question': 'viewer.help-overlay',
+            'Escape': 'viewer.go-back',
             '<ctrl><shift>g': 'search.prev',
             '<ctrl>g': 'search.next',
             '<ctrl>c': 'selection.copy',
@@ -1004,6 +1005,9 @@ export const BookViewer = GObject.registerClass({
         win.present()
     }
     open(file) {
+        // always start a freshly opened book with the sidebar unpinned
+        // (overlay mode), regardless of whatever was left pinned last time
+        this.fold_sidebar = true
         this._top_overlay_box.show()
         // "It is better not to show spinners for very short periods of time [...]
         // consider only showing the spinner after a period of time has elapsed."
@@ -1022,6 +1026,10 @@ export const BookViewer = GObject.registerClass({
     }
     toggleSidebar() {
         this._flap.show_sidebar = !this._flap.show_sidebar
+    }
+    goBack() {
+        if (this._flap.show_sidebar) this._flap.show_sidebar = false
+        else this.root.showLibrary()
     }
     #toggleSidebarContent(name) {
         if (this._flap.show_sidebar

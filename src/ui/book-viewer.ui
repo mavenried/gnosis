@@ -32,7 +32,7 @@
       <attribute name="action">viewer.help-overlay</attribute>
     </item>
     <item>
-      <attribute name="label" translatable="yes">About Foliate</attribute>
+      <attribute name="label" translatable="yes">About Gnosis</attribute>
       <attribute name="action">app.about</attribute>
     </item>
   </section>
@@ -227,7 +227,7 @@
                   <child type="start">
                     <object class="GtkButton" id="library-button">
                       <property name="action-name">win.show-library</property>
-                      <property name="icon-name">library-symbolic</property>
+                      <property name="icon-name">gnosis-library-symbolic</property>
                       <property name="tooltip-text" translatable="yes">Library</property>
                     </object>
                   </child>
@@ -524,6 +524,13 @@
                   <child>
                     <object class="AdwHeaderBar">
                       <property name="valign">start</property>
+                      <child type="start">
+                        <object class="GtkButton" id="header-library-button">
+                          <property name="action-name">win.show-library</property>
+                          <property name="icon-name">gnosis-library-symbolic</property>
+                          <property name="tooltip-text" translatable="yes">Library</property>
+                        </object>
+                      </child>
                       <child type="start">
                         <object class="GtkToggleButton">
                           <property name="icon-name">sidebar-show-symbolic</property>
