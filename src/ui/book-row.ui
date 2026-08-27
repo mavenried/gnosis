@@ -22,6 +22,12 @@
   </section>
   <section>
     <item>
+      <attribute name="label" translatable="yes">Toggle Read Status</attribute>
+      <attribute name="action">book-item.toggle-read</attribute>
+    </item>
+  </section>
+  <section>
+    <item>
       <attribute name="label" translatable="yes">Remove</attribute>
       <attribute name="action">book-item.remove</attribute>
     </item>

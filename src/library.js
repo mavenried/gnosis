@@ -68,6 +68,14 @@ class URIStore {
         this.#map.delete(id)
         this.#storage.set('uris', Array.from(this.#map.entries()))
     }
+    findIdentifierByPath(path) {
+        const home = GLib.get_home_dir()
+        const short = path.startsWith(home) ? path.replace(home, '~') : path
+        const uri = Gio.File.new_for_path(path).get_uri()
+        for (const [id, value] of this.#map)
+            if (value === short || value === uri) return id
+        return null
+    }
 }
 
 export const getURIStore = utils.memoize(() => new URIStore())
@@ -146,7 +154,7 @@ const defaultPixbuf = Gdk.pixbuf_get_from_surface(surface, 0, 0, width, height)
 GObject.registerClass({
     GTypeName: 'FoliateBookImage',
     Template: pkg.moduleuri('ui/book-image.ui'),
-    InternalChildren: ['image', 'generated', 'title'],
+    InternalChildren: ['image', 'generated', 'title', 'progress-pie'],
 }, class extends Gtk.Overlay {
     load(pixbuf, title) {
         if (pixbuf) {
@@ -161,20 +169,67 @@ GObject.registerClass({
         }
         this._image.tooltip_text = title
     }
+    setProgress(status, frac) {
+        const visible = status !== 'unread'
+        this._progress_pie.visible = visible
+        if (!visible) return
+        this._progress_pie.set_draw_func((_, cr, width, height) =>
+            drawProgressBadge(cr, width, height, status, frac))
+        this._progress_pie.queue_draw()
+    }
 })
 
 const fraction = p => !isNaN(p?.[1]) && p?.[1] > 0 ? p[0] / p[1] : null
 
+const READ_THRESHOLD = 0.97
+const readingStatus = p => {
+    const frac = fraction(p)
+    if (frac == null || frac <= 0) return 'unread'
+    if (frac >= READ_THRESHOLD) return 'read'
+    return 'reading'
+}
+
+// a small pie-shaped progress badge on the corner of the cover: a wedge
+// showing how much of the book has been read, or a checkmark once finished
+const drawProgressBadge = (cr, width, height, status, frac) => {
+    const cx = width / 2, cy = height / 2
+    const radius = Math.min(width, height) / 2
+
+    cr.arc(cx, cy, radius, 0, 2 * Math.PI)
+    cr.setSourceRGBA(0.35, 0.35, 0.37, 0.92)
+    cr.fill()
+
+    cr.setSourceRGBA(1, 1, 1, 0.95)
+    if (status === 'read') {
+        cr.setLineWidth(Math.max(1.5, radius * 0.22))
+        cr.setLineCap(cairo.LineCap.ROUND)
+        cr.setLineJoin(cairo.LineJoin.ROUND)
+        cr.moveTo(cx - radius * 0.45, cy + radius * 0.05)
+        cr.lineTo(cx - radius * 0.12, cy + radius * 0.4)
+        cr.lineTo(cx + radius * 0.5, cy - radius * 0.35)
+        cr.stroke()
+    } else {
+        const start = -Math.PI / 2
+        const end = start + (frac ?? 0) * 2 * Math.PI
+        cr.moveTo(cx, cy)
+        cr.arc(cx, cy, radius - 2.5, start, end)
+        cr.lineTo(cx, cy)
+        cr.closePath()
+        cr.fill()
+    }
+}
+
 const BookItem = GObject.registerClass({
     GTypeName: 'FoliateBookItem',
     Template: pkg.moduleuri('ui/book-item.ui'),
-    InternalChildren: ['image', 'progress', 'title'],
+    InternalChildren: ['image', 'progress', 'title', 'author'],
     Signals: {
         'open-new-window': { param_types: [Gio.File.$gtype] },
         'remove-book': { param_types: [Gio.File.$gtype] },
         'export-book': { param_types: [Gio.File.$gtype] },
         'book-info': { param_types: [Gio.File.$gtype] },
         'open-external-app': { param_types: [Gio.File.$gtype] },
+        'toggle-read': { param_types: [Gio.File.$gtype] },
     },
 }, class extends Gtk.Box {
     #item
@@ -186,6 +241,7 @@ const BookItem = GObject.registerClass({
             'export': () => this.emit('export-book', this.#item),
             'info': () => this.emit('book-info', this.#item),
             'open-external-app': () => this.emit('open-external-app', this.#item),
+            'toggle-read': () => this.emit('toggle-read', this.#item),
         }))
     }
     update(item, data, cover) {
@@ -194,6 +250,11 @@ const BookItem = GObject.registerClass({
         this._title.text = title
         this._image.load(cover?.then ? null : cover, title)
         this._progress.label = format.percent(fraction(data.progress))
+        this._image.setProgress(readingStatus(data.progress), fraction(data.progress))
+
+        const author = formatAuthors(data.metadata)
+        this._author.label = author
+        this._author.visible = Boolean(author)
     }
 })
 
@@ -207,6 +268,7 @@ const BookRow = GObject.registerClass({
         'export-book': { param_types: [Gio.File.$gtype] },
         'book-info': { param_types: [Gio.File.$gtype] },
         'open-external-app': { param_types: [Gio.File.$gtype] },
+        'toggle-read': { param_types: [Gio.File.$gtype] },
     },
 }, class extends Gtk.Box {
     #item
@@ -218,6 +280,7 @@ const BookRow = GObject.registerClass({
             'export': () => this.emit('export-book', this.#item),
             'info': () => this.emit('book-info', this.#item),
             'open-external-app': () => this.emit('open-external-app', this.#item),
+            'toggle-read': () => this.emit('toggle-read', this.#item),
         }))
     }
     update(item, data) {
@@ -252,12 +315,80 @@ const BookRow = GObject.registerClass({
 const matchString = (x, q) => typeof x === 'string'
     ? x.toLowerCase().includes(q) : false
 
+const compareStrings = (a, b) => (a || '').localeCompare(b || '')
+
+const getFileMTime = file => {
+    try {
+        return file.query_info('time::modified', Gio.FileQueryInfoFlags.NONE, null)
+            .get_attribute_uint64('time::modified')
+    } catch {
+        return 0
+    }
+}
+
+// foliate-js's `belongsTo.series` is an array for real EPUB3
+// belongs-to-collection metadata, but a single object for the legacy
+// calibre:series fallback (see foliate-js/epub.js) — handle both
+const getSeries = metadata => {
+    const series = metadata?.belongsTo?.series
+    if (!series) return ''
+    const item = Array.isArray(series) ? series[0] : series
+    return formatLanguageMap(item?.name) || ''
+}
+
+const getSeriesIndex = metadata => {
+    const series = metadata?.belongsTo?.series
+    if (!series) return null
+    const item = Array.isArray(series) ? series[0] : series
+    // the EPUB3 belongs-to-collection path gives a raw string ("2"), while
+    // the legacy calibre:series_index fallback already parses to a number
+    const position = typeof item?.position === 'string'
+        ? parseFloat(item.position) : item?.position
+    return typeof position === 'number' && !isNaN(position) ? position : null
+}
+
+// missing index sorts before a defined one, matching gnosis's own
+// Option<f64>::partial_cmp semantics (None < Some)
+const compareSeriesIndex = (a, b) => {
+    if (a == null && b == null) return 0
+    if (a == null) return -1
+    if (b == null) return 1
+    return a - b
+}
+
+// all sort keys need the whole library loaded to compare correctly, since
+// there's no database index to sort by; see `load-all`/`#applySort()`
+const SORTERS = {
+    title: (a, b, books) => compareStrings(
+        formatLanguageMap(books.readFile(a)?.metadata?.title),
+        formatLanguageMap(books.readFile(b)?.metadata?.title)),
+    author: (a, b, books) => compareStrings(
+        formatAuthors(books.readFile(a)?.metadata),
+        formatAuthors(books.readFile(b)?.metadata)),
+    added: (a, b, books) =>
+        (books.readFile(b)?.added ?? 0) - (books.readFile(a)?.added ?? 0),
+    // no per-book "last read" timestamp is tracked; the book's JSON file is
+    // rewritten every time reading progress is saved, so its mtime doubles
+    // as a "last read" signal without needing to hook into the reader
+    read: (a, b) => getFileMTime(b) - getFileMTime(a),
+    series: (a, b, books) => {
+        const ma = books.readFile(a)?.metadata, mb = books.readFile(b)?.metadata
+        const sa = getSeries(ma), sb = getSeries(mb)
+        if (Boolean(sa) !== Boolean(sb)) return sa ? -1 : 1
+        return compareStrings(sa, sb)
+            || compareSeriesIndex(getSeriesIndex(ma), getSeriesIndex(mb))
+            || compareStrings(formatLanguageMap(ma?.title), formatLanguageMap(mb?.title))
+    },
+}
+
 GObject.registerClass({
     GTypeName: 'FoliateLibraryView',
     Template: pkg.moduleuri('ui/library-view.ui'),
     InternalChildren: ['scrolled'],
     Properties: utils.makeParams({
         'view-mode': 'string',
+        'sort-by': 'string',
+        'status-filter': 'string',
     }),
     Signals: {
         'load-more': { return_type: GObject.TYPE_BOOLEAN },
@@ -266,9 +397,20 @@ GObject.registerClass({
     },
 }, class extends Gtk.Stack {
     #done = false
-    #filter = new Gtk.CustomFilter()
+    #searchFilter = new Gtk.CustomFilter()
+    #statusFilter = new Gtk.CustomFilter()
+    #browseFilter = new Gtk.CustomFilter()
+    #filter = (() => {
+        const filter = new Gtk.EveryFilter()
+        filter.append(this.#searchFilter)
+        filter.append(this.#statusFilter)
+        filter.append(this.#browseFilter)
+        return filter
+    })()
     #filterModel = utils.connect(new Gtk.FilterListModel({ filter: this.#filter }),
         { 'items-changed': () => this.#update() })
+    #sorter = new Gtk.CustomSorter()
+    #sortModel = new Gtk.SortListModel({ model: this.#filterModel, sorter: this.#sorter })
     #itemConnections = {
         'open-new-window': (_, file) => this.root.addWindow(getBooks().getBook(file)),
         'remove-book': (_, file) => this.removeBook(file),
@@ -283,9 +425,10 @@ GObject.registerClass({
             makeBookInfoWindow(this.get_root(), metadata, cover)
         },
         'open-external-app': (_, file) => this.openWithExternalApp(getBooks().getBook(file)),
+        'toggle-read': (_, file) => this.toggleRead(file),
     }
     actionGroup = utils.addMethods(this, {
-        props: ['view-mode'],
+        props: ['view-mode', 'sort-by', 'status-filter'],
     })
     constructor(params) {
         super(params)
@@ -296,6 +439,8 @@ GObject.registerClass({
         const show = () => this.view_mode === 'list' ? this.showList() : this.showGrid()
         this.connect('notify::view-mode', show)
         show()
+        this.connect('notify::sort-by', () => this.#applySort())
+        this.connect('notify::status-filter', () => this.#applyStatus())
     }
     #checkAdjustment(adj) {
         if (this.#done) return
@@ -319,7 +464,7 @@ GObject.registerClass({
             single_click_activate: true,
             max_columns: 20,
             vscroll_policy: Gtk.ScrollablePolicy.NATURAL,
-            model: new Gtk.NoSelection({ model: this.#filterModel }),
+            model: new Gtk.NoSelection({ model: this.#sortModel }),
             factory: utils.connect(new Gtk.SignalListItemFactory(), {
                 'setup': (_, item) => item.child =
                     utils.connect(new BookItem(), this.#itemConnections),
@@ -332,7 +477,7 @@ GObject.registerClass({
                 },
             }),
         }), { 'activate': (_, pos) =>
-            this.emit('activate', this.#filterModel.get_item(pos)) })
+            this.emit('activate', this.#sortModel.get_item(pos)) })
         this._scrolled.child.remove_css_class('view')
     }
     showList() {
@@ -340,7 +485,7 @@ GObject.registerClass({
         this._scrolled.child = new Adw.ClampScrollable({
             child: utils.connect(utils.addClass(new Gtk.ListView({
                 single_click_activate: true,
-                model: new Gtk.NoSelection({ model: this.#filterModel }),
+                model: new Gtk.NoSelection({ model: this.#sortModel }),
                 factory: utils.connect(new Gtk.SignalListItemFactory(), {
                     'setup': (_, item) => item.child = utils.connect(
                         new BookRow(), this.#itemConnections),
@@ -350,7 +495,7 @@ GObject.registerClass({
                     },
                 }),
             }), 'book-list'), { 'activate': (_, pos) =>
-                this.emit('activate', this.#filterModel.get_item(pos)) }),
+                this.emit('activate', this.#sortModel.get_item(pos)) }),
         })
     }
     #getData(file, getCover) {
@@ -363,17 +508,63 @@ GObject.registerClass({
     search(text) {
         const q = text.trim().toLowerCase()
         if (!q) {
-            this.#filter.set_filter_func(null)
+            this.#searchFilter.set_filter_func(null)
             return
         }
         this.emit('load-all')
         const fields = ['title', 'creator', 'description']
         const { readFile } = this.#filterModel.model
-        this.#filter.set_filter_func(file => {
+        this.#searchFilter.set_filter_func(file => {
             const { metadata } = readFile(file)
             if (!metadata) return false
             return fields.some(field => matchString(metadata[field], q))
         })
+    }
+    #applySort() {
+        this.emit('load-all')
+        const books = getBooks()
+        const key = this.sort_by || 'added'
+        const compare = SORTERS[key] ?? SORTERS.added
+        this.#sorter.set_sort_func((a, b) => {
+            const result = compare(a, b, books)
+            return result < 0 ? -1 : result > 0 ? 1 : 0
+        })
+    }
+    #applyStatus() {
+        const status = this.status_filter || 'all'
+        if (status === 'all') {
+            this.#statusFilter.set_filter_func(null)
+            return
+        }
+        this.emit('load-all')
+        const { readFile } = this.#filterModel.model
+        this.#statusFilter.set_filter_func(file =>
+            readingStatus(readFile(file)?.progress) === status)
+    }
+    setBrowseFilter(field, value) {
+        this.emit('load-all')
+        const { readFile } = this.#filterModel.model
+        this.#browseFilter.set_filter_func(file => {
+            const { metadata } = readFile(file) ?? {}
+            if (!metadata) return false
+            return (field === 'authors'
+                ? formatAuthors(metadata)
+                : getSeries(metadata)) === value
+        })
+    }
+    clearBrowseFilter() {
+        this.#browseFilter.set_filter_func(null)
+    }
+    toggleRead(file) {
+        const books = getBooks()
+        const data = books.readFile(file)
+        const status = readingStatus(data?.progress)
+        const total = data?.progress?.[1] || 1
+        const identifier = decodeURIComponent(file.get_basename().replace('.json', ''))
+        const storage = new utils.JSONStorage(pkg.datadir, identifier)
+        storage.set('progress', status === 'read' ? [0, total] : [total, total], false)
+        storage.saveNow()
+        books.update(storage.path)
     }
     removeBook(file) {
         const dialog = new Adw.AlertDialog({
@@ -451,103 +642,33 @@ const SidebarRow = GObject.registerClass({
             icon: [this.#icon, 'icon-name'],
             label: [this.#label, 'label'],
         })
-
-        this.insert_action_group('catalog-item', utils.addSimpleActions({
-            'rename': () => this.rename(),
-            'remove': () => this.emit('remove-catalog', this.item),
-        }))
-
-        this.#popover.set_parent(this)
-        this.#menu.append(_('Rename…'), 'catalog-item.rename')
-        this.#menu.append(_('Remove'), 'catalog-item.remove')
-        this.add_controller(utils.connect(new Gtk.GestureClick({
-            button: Gdk.BUTTON_SECONDARY,
-        }), {
-            'pressed': (_, __, x, y) => {
-                if (this.item.type === 'catalog') {
-                    this.#popover.pointing_to = new Gdk.Rectangle({ x, y })
-                    this.#popover.popup()
-                }
-            },
-        }))
-    }
-    rename() {
-        const { window, button } = this.root.actionDialog()
-        const submit = () => {
-            const text = entry.text.trim()
-            if (!text) return
-            this.item.set_property('label', text)
-            window.close()
-        }
-        window.title = _('Rename')
-        button.label = _('Rename')
-        button.connect('clicked', submit)
-        const page = new Adw.PreferencesPage()
-        const group = new Adw.PreferencesGroup()
-        const entry = utils.connect(new Adw.EntryRow({
-            title: _('Name'),
-            text: this.item.label,
-            input_purpose: Gtk.InputPurpose.URL,
-        }), { 'entry-activated': submit })
-        group.add(entry)
-        page.add(group)
-        window.content.content = page
-        window.show()
-        entry.grab_focus()
     }
 })
 
 const sidebarListModel = new Gio.ListStore()
 sidebarListModel.append(new SidebarItem({
-    icon: 'library-symbolic',
+    icon: 'gnosis-library-symbolic',
     label: _('All Books'),
     value: 'library',
 }))
 sidebarListModel.append(new SidebarItem({
-    type: 'action',
-    icon: 'list-add-symbolic',
-    label: _('Add Catalog…'),
-    value: 'add-catalog',
+    type: 'browse',
+    icon: 'gnosis-author-symbolic',
+    label: _('Authors'),
+    value: 'authors',
 }))
-
-const exportCatalogItems = () =>
-    Array.from(utils.gliter(sidebarListModel), ([, item]) => item.type === 'catalog' ? {
-        title: item.label,
-        uri: item.value,
-    } : null).filter(x => x)
-
-const saveCatalogs = () => catalogsStore.set('catalogs', exportCatalogItems())
-
-const addCatalogItem = (label, value) => {
-    const item = new SidebarItem({
-        type: 'catalog',
-        icon: 'application-rss+xml-symbolic',
-        label, value,
-    })
-    item.connectAll(saveCatalogs)
-    sidebarListModel.insert(sidebarListModel.get_n_items() - 1, item)
-}
-
-const addCatalog = catalog => {
-    for (const [, item] of utils.gliter(sidebarListModel))
-        if (item.type === 'catalog' && item.value === catalog.uri) return
-    addCatalogItem(catalog.title, catalog.uri)
-    saveCatalogs()
-}
-
-const removeCatalog = uri => {
-    for (const [i, item] of utils.gliter(sidebarListModel))
-        if (item.type === 'catalog' && item.value === uri) {
-            sidebarListModel.remove(i)
-            break
-        }
-    saveCatalogs()
-}
-
-for (const catalog of catalogsStore.get('catalogs', defaultCatalogs)) {
-    if (typeof catalog.title === 'string' && typeof catalog.uri === 'string')
-        addCatalogItem(catalog.title, catalog.uri)
-}
+sidebarListModel.append(new SidebarItem({
+    type: 'browse',
+    icon: 'view-list-symbolic',
+    label: _('Series'),
+    value: 'series',
+}))
+sidebarListModel.append(new SidebarItem({
+    type: 'action',
+    icon: 'folder-symbolic',
+    label: _('Library Folders…'),
+    value: 'library-folders',
+}))
 
 export const Library = GObject.registerClass({
     GTypeName: 'FoliateLibrary',
@@ -555,11 +676,12 @@ export const Library = GObject.registerClass({
     InternalChildren: [
         'breakpoint-bin', 'split-view',
         'sidebar-list-box', 'main-stack',
-        'library-toolbar-view', 'catalog-toolbar-view',
+        'library-toolbar-view',
         'books-view', 'search-bar', 'search-entry',
-        'opds-view',
+        'browse-toolbar-view', 'browse-title', 'browse-list-box',
     ],
 }, class extends Gtk.Box {
+    #browseField = 'authors'
     constructor(params) {
         super(params)
 
@@ -578,83 +700,24 @@ export const Library = GObject.registerClass({
                     margin_start: 12,
                     margin_bottom: 6,
                 }), 'caption-heading', 'dim-label'))
-            if (before && before.child.item.type !== 'catalog'
-            && row.child.item.type === 'catalog')
-                row.set_header(utils.addClass(new Gtk.Label({
-                    label: _('Catalogs'),
-                    xalign: 0,
-                    margin_start: 12,
-                    margin_top: 18,
-                    margin_bottom: 6,
-                }), 'caption-heading', 'dim-label'))
         })
-        this._sidebar_list_box.add_controller(utils.connect(Gtk.DropTarget.new(
-            SidebarItem.$gtype, Gdk.DragAction.MOVE), {
-            'motion': (_, _x, y) => {
-                const row = this._sidebar_list_box.get_row_at_y(y)
-                if (row && row.child.item.type === 'catalog')
-                    return Gdk.DragAction.MOVE
-            },
-            'drop': (_, value, _x, y) => {
-                const row = this._sidebar_list_box.get_row_at_y(y)
-                if (row && row.child.item.type === 'catalog') {
-                    let sourceItem, sourceIndex, targetIndex
-                    for (const [i, item] of utils.gliter(sidebarListModel)) {
-                        if (sourceIndex != null && targetIndex != null) break
-                        if (item.type === 'catalog') {
-                            if (item === value) {
-                                sourceItem = item
-                                sourceIndex = i
-                            }
-                            if (item.value === row.child.item.value) {
-                                targetIndex = i
-                            }
-                        }
-                    }
-                    if (sourceIndex === targetIndex) return
-                    sidebarListModel.remove(sourceIndex)
-                    if (sourceIndex < targetIndex + 1) targetIndex--
-                    sidebarListModel.insert(targetIndex + 1, sourceItem)
-                    saveCatalogs()
-                }
-            },
-        }))
-        this._sidebar_list_box.bind_model(sidebarListModel, item => {
-            const child = utils.connect(new SidebarRow({ item }), {
-                'remove-catalog': (self, item) => {
-                    removeCatalog(item.value)
-                    this.root.add_toast(utils.connect(new Adw.Toast({
-                        title: _('Catalog removed'),
-                        button_label: _('Undo'),
-                    }), { 'button-clicked': () => addCatalog({
-                        title: item.label,
-                        uri: item.value,
-                    }) }))
-                },
-            })
-            if (item.type === 'catalog') {
-                child.add_controller(utils.connect(new Gtk.DragSource({
-                    actions: Gdk.DragAction.MOVE,
-                }), {
-                    'prepare': (source, x, y) => {
-                        source.set_icon(new Gtk.WidgetPaintable({ widget: child }), x, y)
-                        const value = new GObject.Value()
-                        value.init(SidebarItem)
-                        value.set_object(item)
-                        return Gdk.ContentProvider.new_for_value(item)
-                    },
-                }))
-            }
-            return new Gtk.ListBoxRow({ child,
-                selectable: item.value !== 'add-catalog' })
-        })
+        this._sidebar_list_box.bind_model(sidebarListModel, item =>
+            new Gtk.ListBoxRow({ child: new SidebarRow({ item }) }))
         this._sidebar_list_box.connect('row-activated', (__, row) => {
             const { type, value } = row.child.item
-            if (value === 'add-catalog') return this.addCatalog().catch(e => console.error(e))
-            if (value === 'library') return this._main_stack.visible_child = this._library_toolbar_view
-            if (type === 'catalog') return this.showCatalog(value)
+            if (value === 'library-folders') return this.showLibraryFolders()
+            if (value === 'library') {
+                this._books_view.clearBrowseFilter()
+                return this._main_stack.visible_child = this._library_toolbar_view
+            }
+            if (type === 'browse') return this.showBrowse(value)
         })
         this._sidebar_list_box.select_row(this._sidebar_list_box.get_row_at_index(0))
+
+        this._browse_list_box.connect('row-activated', (__, row) => {
+            this._books_view.setBrowseFilter(this.#browseField, row.browseValue)
+            this._main_stack.visible_child = this._library_toolbar_view
+        })
 
         const books = getBooks()
 
@@ -665,7 +728,7 @@ export const Library = GObject.registerClass({
         })
         this._books_view.setModel(books)
         this._books_view.view_mode = 'grid'
-        utils.bindSettings('library', this._books_view, ['view-mode'])
+        utils.bindSettings('library', this._books_view, ['view-mode', 'sort-by'])
         books.loadMore(10)
 
         this._search_bar.connect_entry(this._search_entry)
@@ -673,65 +736,69 @@ export const Library = GObject.registerClass({
             this._books_view.search(entry.text))
 
         this.insert_action_group('library', this._books_view.actionGroup)
-        this.insert_action_group('catalog', this._opds_view.actionGroup)
+        this.add_controller(utils.addShortcuts({
+            '<ctrl>r': () => (this.refreshLibrary(), true),
+        }))
+        this.refreshLibrary()
     }
-    #addCatalog(url) {
-        this._sidebar_list_box.select_row(null)
-        const handler = this._opds_view.connect('state-changed', (_, state) => {
-            this._opds_view.disconnect(handler)
-            if (state) {
-                const catalog = {
-                    title: state.title || '',
-                    uri: state.start || state.self,
-                }
-                addCatalog(catalog)
-
-                for (let i = 0;; i++) {
-                    const row = this._sidebar_list_box.get_row_at_index(i)
-                    if (!row) break
-                    const { type, value } = row.child.item
-                    if (type === 'catalog' && value === catalog.uri)
-                        this._sidebar_list_box.select_row(row)
-                }
-            }
-        })
-        this.showCatalog(url)
-    }
-    async addCatalog() {
-        let text = ''
+    async refreshLibrary() {
         try {
-            text = await utils.getClipboardText()
+            const { refreshed } = await refreshStaleBooks()
+            const { added } = await scanLibraryFolders()
+            const parts = []
+            if (refreshed) parts.push(format.vprintf(ngettext(
+                'Refreshed %d book', 'Refreshed %d books', refreshed), [refreshed]))
+            if (added) parts.push(format.vprintf(ngettext(
+                'Added %d book', 'Added %d books', added), [added]))
+            if (parts.length) this.root?.add_toast(new Adw.Toast({ title: parts.join(' · ') }))
         } catch (e) {
-            console.warn(e)
+            console.error(e)
         }
-        const { window, button } = this.root.actionDialog()
-        const submit = () => {
-            const url = entry.text.trim()
-            if (!url) return
-            this.#addCatalog(url)
-            window.close()
-        }
-        window.title = _('Add Catalog')
-        button.label = _('Add')
-        button.connect('clicked', submit)
-        window.content.content = utils.addClass(new Adw.StatusPage({
-            icon_name: 'application-rss+xml-symbolic',
-            title: _('Add Catalog'),
-            description: _('You can browse and download books from OPDS catalogs. <a href="https://opds.io">Learn More…</a>'),
-        }), 'compact')
-        const group = new Adw.PreferencesGroup()
-        const entry = utils.connect(new Adw.EntryRow({
-            title: _('URL'),
-            input_purpose: Gtk.InputPurpose.URL,
-            text: /^(http|https|opds):\/\//.test(text) ? text : '',
-        }), { 'entry-activated': submit })
-        group.add(entry)
-        window.content.content.child = group
-        window.show()
-        entry.grab_focus()
     }
-    showCatalog(url) {
-        this._main_stack.visible_child = this._catalog_toolbar_view
-        this._opds_view.load(url)
+    showLibraryFolders() {
+        this._sidebar_list_box.select_row(null)
+        const dialog = new LibraryFoldersDialog()
+        dialog.present(this.root)
+    }
+    showBrowse(kind) {
+        this.#browseField = kind
+        const books = getBooks()
+        books.loadMore(Infinity)
+        const counts = new Map()
+        for (const [, file] of utils.gliter(books)) {
+            const { metadata } = books.readFile(file) ?? {}
+            const value = kind === 'authors' ? formatAuthors(metadata) : getSeries(metadata)
+            if (!value) continue
+            counts.set(value, (counts.get(value) ?? 0) + 1)
+        }
+        const groups = Array.from(counts, ([name, count]) => ({ name, count }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+
+        let child = this._browse_list_box.get_first_child()
+        while (child) {
+            const next = child.get_next_sibling()
+            this._browse_list_box.remove(child)
+            child = next
+        }
+        for (const { name, count } of groups) {
+            const box = new Gtk.Box({
+                spacing: 12,
+                margin_start: 12, margin_end: 12,
+                margin_top: 9, margin_bottom: 9,
+            })
+            box.append(new Gtk.Label({
+                label: name, xalign: 0, hexpand: true,
+                ellipsize: Pango.EllipsizeMode.END,
+            }))
+            box.append(utils.addClass(new Gtk.Label({
+                label: String(count),
+            }), 'dim-label', 'caption'))
+            const row = new Gtk.ListBoxRow({ child: box })
+            row.browseValue = name
+            this._browse_list_box.append(row)
+        }
+
+        this._browse_title.label = kind === 'authors' ? _('Authors') : _('Series')
+        this._main_stack.visible_child = this._browse_toolbar_view
     }
 })

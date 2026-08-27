@@ -13,6 +13,63 @@
       <attribute name="target">grid</attribute>
     </item>
   </section>
+  <section>
+    <submenu>
+      <attribute name="label" translatable="yes">Sort By</attribute>
+      <section>
+        <item>
+          <attribute name="label" translatable="yes">Recently Added</attribute>
+          <attribute name="action">library.sort-by</attribute>
+          <attribute name="target">added</attribute>
+        </item>
+        <item>
+          <attribute name="label" translatable="yes">Recently Read</attribute>
+          <attribute name="action">library.sort-by</attribute>
+          <attribute name="target">read</attribute>
+        </item>
+        <item>
+          <attribute name="label" translatable="yes">Title</attribute>
+          <attribute name="action">library.sort-by</attribute>
+          <attribute name="target">title</attribute>
+        </item>
+        <item>
+          <attribute name="label" translatable="yes">Author</attribute>
+          <attribute name="action">library.sort-by</attribute>
+          <attribute name="target">author</attribute>
+        </item>
+        <item>
+          <attribute name="label" translatable="yes">Series</attribute>
+          <attribute name="action">library.sort-by</attribute>
+          <attribute name="target">series</attribute>
+        </item>
+      </section>
+    </submenu>
+    <submenu>
+      <attribute name="label" translatable="yes">Filter</attribute>
+      <section>
+        <item>
+          <attribute name="label" translatable="yes">All Books</attribute>
+          <attribute name="action">library.status-filter</attribute>
+          <attribute name="target">all</attribute>
+        </item>
+        <item>
+          <attribute name="label" translatable="yes">Unread</attribute>
+          <attribute name="action">library.status-filter</attribute>
+          <attribute name="target">unread</attribute>
+        </item>
+        <item>
+          <attribute name="label" translatable="yes">Reading</attribute>
+          <attribute name="action">library.status-filter</attribute>
+          <attribute name="target">reading</attribute>
+        </item>
+        <item>
+          <attribute name="label" translatable="yes">Read</attribute>
+          <attribute name="action">library.status-filter</attribute>
+          <attribute name="target">read</attribute>
+        </item>
+      </section>
+    </submenu>
+  </section>
 </menu>
 <menu id="primary-menu">
   <section>
@@ -43,7 +100,7 @@
     </item>
     -->
     <item>
-      <attribute name="label" translatable="yes">About Foliate</attribute>
+      <attribute name="label" translatable="yes">About Gnosis</attribute>
       <attribute name="action">app.about</attribute>
     </item>
   </section>

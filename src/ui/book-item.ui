@@ -22,6 +22,12 @@
   </section>
   <section>
     <item>
+      <attribute name="label" translatable="yes">Toggle Read Status</attribute>
+      <attribute name="action">book-item.toggle-read</attribute>
+    </item>
+  </section>
+  <section>
+    <item>
       <attribute name="label" translatable="yes">Remove</attribute>
       <attribute name="action">book-item.remove</attribute>
     </item>
@@ -45,6 +51,14 @@
         <property name="min-lines">2</property>
         <property name="margin-top">9</property>
         <style><class name="caption-heading"/></style>
+      </object>
+    </child>
+    <child>
+      <object class="GtkLabel" id="author">
+        <property name="xalign">0</property>
+        <property name="ellipsize">end</property>
+        <property name="visible">false</property>
+        <style><class name="caption"/><class name="dim-label"/></style>
       </object>
     </child>
     <child>
