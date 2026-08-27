@@ -1,6 +1,6 @@
 desktop_file = i18n.merge_file(
-  input: 'com.github.johnfactotum.Foliate.desktop.in',
-  output: 'com.github.johnfactotum.Foliate.desktop',
+  input: 'com.github.mavenried.Gnosis.desktop.in',
+  output: 'com.github.mavenried.Gnosis.desktop',
   type: 'desktop',
   po_dir: '../po',
   install: true,
@@ -15,8 +15,8 @@ if desktop_utils.found()
 endif
 
 appstream_file = i18n.merge_file(
-  input: 'com.github.johnfactotum.Foliate.metainfo.xml.in',
-  output: 'com.github.johnfactotum.Foliate.metainfo.xml',
+  input: 'com.github.mavenried.Gnosis.metainfo.xml.in',
+  output: 'com.github.mavenried.Gnosis.metainfo.xml',
   po_dir: '../po',
   install: true,
   install_dir: join_paths(get_option('datadir'), 'metainfo')
@@ -29,7 +29,7 @@ if appstreamcli.found()
   )
 endif
 
-install_data('com.github.johnfactotum.Foliate.gschema.xml',
+install_data('com.github.mavenried.Gnosis.gschema.xml',
   install_dir: join_paths(get_option('datadir'), 'glib-2.0/schemas')
 )
 
@@ -40,9 +40,9 @@ if compile_schemas.found()
   )
 endif
 
-install_data('com.github.johnfactotum.Foliate.svg',
+install_data('com.github.mavenried.Gnosis.svg',
   install_dir: join_paths(get_option('datadir'), 'icons/hicolor/scalable/apps')
 )
-install_data('com.github.johnfactotum.Foliate-symbolic.svg',
+install_data('com.github.mavenried.Gnosis-symbolic.svg',
   install_dir: join_paths(get_option('datadir'), 'icons/hicolor/symbolic/apps')
 )

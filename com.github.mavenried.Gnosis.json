@@ -1,9 +1,9 @@
 {
-    "app-id" : "com.github.johnfactotum.Foliate",
+    "app-id" : "com.github.mavenried.Gnosis",
     "runtime" : "org.gnome.Sdk",
     "runtime-version" : "49",
     "sdk" : "org.gnome.Sdk",
-    "command" : "foliate",
+    "command" : "gnosis",
     "finish-args" : [
         "--share=network",
         "--share=ipc",
@@ -15,13 +15,12 @@
     ],
     "modules" : [
         {
-            "name" : "foliate",
+            "name" : "gnosis-foliate",
             "buildsystem" : "meson",
             "sources" : [
                 {
-                    "type" : "git",
-                    "branch": "gtk4",
-                    "url": "https://github.com/johnfactotum/foliate.git"
+                    "type" : "dir",
+                    "path" : "."
                 }
             ]
         }

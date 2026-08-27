@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<schemalist gettext-domain="com.github.johnfactotum.Foliate">
-  <schema id="com.github.johnfactotum.Foliate" path="/com/github/johnfactotum/Foliate/">
-    <child schema="com.github.johnfactotum.Foliate.window" name="window"/>
-    <child schema="com.github.johnfactotum.Foliate.viewer" name="library"/>
-    <child schema="com.github.johnfactotum.Foliate.viewer" name="viewer"/>
+<schemalist gettext-domain="com.github.mavenried.Gnosis">
+  <schema id="com.github.mavenried.Gnosis" path="/com/github/mavenried/Gnosis/">
+    <child schema="com.github.mavenried.Gnosis.window" name="window"/>
+    <child schema="com.github.mavenried.Gnosis.viewer" name="library"/>
+    <child schema="com.github.mavenried.Gnosis.viewer" name="viewer"/>
     <key name="color-scheme" type="i">
       <default>0</default>
     </key>
   </schema>
 
-  <schema id="com.github.johnfactotum.Foliate.window"
-    path="/com/github/johnfactotum/Foliate/window/">
+  <schema id="com.github.mavenried.Gnosis.window"
+    path="/com/github/mavenried/Gnosis/window/">
     <key name="default-width" type="i">
       <default>1200</default>
     </key>
@@ -25,10 +25,13 @@
     </key>
   </schema>
 
-  <schema id="com.github.johnfactotum.Foliate.library"
-    path="/com/github/johnfactotum/Foliate/library/">
+  <schema id="com.github.mavenried.Gnosis.library"
+    path="/com/github/mavenried/Gnosis/library/">
     <key name="view-mode" type="s">
       <default>'grid'</default>
+    </key>
+    <key name="sort-by" type="s">
+      <default>'added'</default>
     </key>
     <key name="show-covers" type="b">
       <default>true</default>
@@ -38,10 +41,10 @@
     </key>
   </schema>
 
-  <schema id="com.github.johnfactotum.Foliate.viewer"
-    path="/com/github/johnfactotum/Foliate/viewer/">
-    <child schema="com.github.johnfactotum.Foliate.viewer.view" name="view"/>
-    <child schema="com.github.johnfactotum.Foliate.viewer.font" name="font"/>
+  <schema id="com.github.mavenried.Gnosis.viewer"
+    path="/com/github/mavenried/Gnosis/viewer/">
+    <child schema="com.github.mavenried.Gnosis.viewer.view" name="view"/>
+    <child schema="com.github.mavenried.Gnosis.viewer.font" name="font"/>
     <key name="fold-sidebar" type="b">
       <default>false</default>
     </key>
@@ -53,8 +56,8 @@
     </key>
   </schema>
 
-  <schema id="com.github.johnfactotum.Foliate.viewer.view"
-    path="/com/github/johnfactotum/Foliate/viewer/view/">
+  <schema id="com.github.mavenried.Gnosis.viewer.view"
+    path="/com/github/mavenried/Gnosis/viewer/view/">
     <key name="brightness" type="d">
       <default>1</default>
     </key>
@@ -99,8 +102,8 @@
     </key>
   </schema>
 
-  <schema id="com.github.johnfactotum.Foliate.viewer.font"
-    path="/com/github/johnfactotum/Foliate/viewer/font/">
+  <schema id="com.github.mavenried.Gnosis.viewer.font"
+    path="/com/github/mavenried/Gnosis/viewer/font/">
     <key name="serif" type="s">
       <default>'Serif'</default>
     </key>

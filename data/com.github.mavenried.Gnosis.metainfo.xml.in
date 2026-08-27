@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop">
+    <id>com.github.mavenried.Gnosis</id>
+    <metadata_license>CC0-1.0</metadata_license>
+    <project_license>GPL-3.0-or-later</project_license>
+    <name translate="no">Gnosis</name>
+    <summary>Read e-books in style</summary>
+    <translation type="gettext">com.github.mavenried.Gnosis</translation>
+    <description>
+        <p>Gnosis is a clean, friendly e-book reader for GNOME, built on top of Foliate by John Factotum. Immerse yourself in a distraction-free interface, with customization features designed to match your unique preferences.</p>
+        <p>Features include:</p>
+        <ul>
+            <li>Open EPUB, Mobipocket, Kindle, FB2, CBZ, and PDF files</li>
+            <li>Paginated mode and scrolled mode</li>
+            <li>Customize font and line-spacing</li>
+            <li>Light, sepia, dark, and invert mode</li>
+            <li>Reading progress slider with chapter marks</li>
+            <li>Bookmarks and annotations</li>
+            <li>Find in book</li>
+            <li>Quick dictionary lookup</li>
+            <li>Browse your library by author or series</li>
+        </ul>
+    </description>
+    <developer id="io.github.mavenried">
+        <name translate="no">Joseph Chacko</name>
+    </developer>
+    <launchable type="desktop-id">com.github.mavenried.Gnosis.desktop</launchable>
+    <url type="homepage">https://github.com/mavenried/gnosis</url>
+    <url type="vcs-browser">https://github.com/mavenried/gnosis</url>
+    <content_rating type="oars-1.1" />
+    <supports>
+      <control>keyboard</control>
+      <control>pointing</control>
+      <control>touch</control>
+    </supports>
+    <requires>
+      <display_length compare="ge">360</display_length>
+    </requires>
+    <branding>
+      <color type="primary" scheme_preference="light">#7bf1d9</color>
+      <color type="primary" scheme_preference="dark">#0b6275</color>
+    </branding>
+</component>

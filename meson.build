@@ -1,4 +1,4 @@
-project('com.github.johnfactotum.Foliate',
+project('com.github.mavenried.Gnosis',
     version: '3.3.0',
     meson_version: '>= 0.59.0',
 )

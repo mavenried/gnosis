@@ -13,11 +13,11 @@ import { setConsoleLogDomain } from 'console'
 
 // mimics (loosely) the `pkg` object set up by GJS if you run `package.init()`
 globalThis.pkg = {
-    name: 'com.github.johnfactotum.Foliate',
+    name: 'com.github.mavenried.Gnosis',
     version: '3.3.0',
     MESON,
 }
-pkg.userAgent = `Foliate/${pkg.version}`
+pkg.userAgent = `Gnosis/${pkg.version}`
 
 GLib.set_prgname(pkg.name)
 setConsoleLogDomain(pkg.name)
@@ -25,7 +25,7 @@ Gtk.Window.set_default_icon_name(pkg.name)
 bindtextdomain(pkg.name, GLib.build_filenamev([MESON ? '@datadir@' : '/usr/share', 'locale']))
 textdomain(pkg.name)
 
-pkg.localeName = _('Foliate')
+pkg.localeName = _('Gnosis')
 GLib.set_application_name(pkg.localeName)
 
 pkg.datadir = GLib.build_filenamev([GLib.get_user_data_dir(), pkg.name])
