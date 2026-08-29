@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?><interface>
+<template class="FoliateSettingsDialog" parent="AdwPreferencesDialog">
+  <property name="title" translatable="yes">Settings</property>
+  <property name="content-width">480</property>
+  <property name="content-height">440</property>
+  <child>
+    <object class="AdwPreferencesPage">
+      <child>
+        <object class="AdwPreferencesGroup" id="group">
+          <property name="title" translatable="yes">Library Folders</property>
+          <property name="description" translatable="yes">Scanned, including subfolders, for EPUB books</property>
+          <child type="header-suffix">
+            <object class="GtkButton" id="add-button">
+              <property name="icon-name">list-add-symbolic</property>
+              <property name="tooltip-text" translatable="yes">Add Folder</property>
+              <style><class name="flat"/></style>
+            </object>
+          </child>
+          <child>
+            <object class="GtkListBox" id="folders-list">
+              <property name="selection-mode">none</property>
+              <style><class name="boxed-list"/></style>
+            </object>
+          </child>
+        </object>
+      </child>
+      <child>
+        <object class="AdwPreferencesGroup">
+          <property name="title" translatable="yes">Maintenance</property>
+          <child>
+            <object class="AdwActionRow" id="refresh-row">
+              <property name="title" translatable="yes">Refresh Library</property>
+              <property name="subtitle" translatable="yes">Reload metadata and cover art for any book whose source file has changed</property>
+              <property name="activatable-widget">refresh-button</property>
+              <child>
+                <object class="AdwSpinner" id="refresh-spinner">
+                  <property name="visible">false</property>
+                  <property name="valign">center</property>
+                  <property name="width-request">16</property>
+                  <property name="height-request">16</property>
+                </object>
+              </child>
+              <child>
+                <object class="GtkButton" id="refresh-button">
+                  <property name="icon-name">view-refresh-symbolic</property>
+                  <property name="tooltip-text" translatable="yes">Refresh Now</property>
+                  <property name="valign">center</property>
+                  <style><class name="flat"/></style>
+                </object>
+              </child>
+            </object>
+          </child>
+        </object>
+      </child>
+    </object>
+  </child>
+</template>
+</interface>

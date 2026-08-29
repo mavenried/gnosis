@@ -31,12 +31,12 @@
     <file>ui/help-overlay.ui</file>
     <file>ui/image-viewer.ui</file>
     <file>ui/import-dialog.ui</file>
-    <file>ui/library-folders-dialog.ui</file>
     <file>ui/library-view.ui</file>
     <file>ui/library.ui</file>
     <file>ui/media-overlay-box.ui</file>
     <file>ui/navbar.ui</file>
     <file>ui/selection-popover.ui</file>
+    <file>ui/settings-dialog.ui</file>
     <file>ui/tts-box.ui</file>
     <file>ui/view-preferences-window.ui</file>
     <file alias="icons/scalable/actions/bookmark-filled-symbolic.svg">icons/hicolor/scalable/actions/bookmark-filled-symbolic.svg</file>
