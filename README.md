@@ -30,6 +30,10 @@ reader from scratch.
 - **Automatic refresh**: if a book's underlying EPUB file changes (re-exported,
   edited), its cover and metadata are refreshed automatically next time it's
   scanned — no need to remove and re-add it.
+- **Settings**: library folders now live in a Settings dialog (sidebar →
+  Settings…), alongside a "Refresh Now" action that forces every book's
+  metadata and cover to be reloaded from its source file, with a progress
+  indicator in the corner of the library while it runs.
 - **One-time migration** from a legacy gnosis (Rust) library: "Import from
   Legacy Gnosis…" in the primary menu reads its SQLite database directly and
   re-imports each book, carrying over reading progress and position.
