@@ -1,6 +1,6 @@
 name: Release
 
-# Fires on version tags like v3.3.0 (single digit per component, matching
+# Fires on version tags like v3.4.0 (single digit per component, matching
 # this project's current versioning scheme).
 on:
   push:
