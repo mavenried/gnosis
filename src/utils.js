@@ -7,6 +7,12 @@ import Gdk from 'gi://Gdk'
 import GdkPixbuf from 'gi://GdkPixbuf'
 import { gettext as _ } from 'gettext'
 
+// used by library-scan.js to check many books/folders concurrently instead
+// of one at a time, without blocking the main thread on each stat() call
+Gio._promisify(Gio.File.prototype, 'query_info_async', 'query_info_finish')
+Gio._promisify(Gio.File.prototype, 'enumerate_children_async', 'enumerate_children_finish')
+Gio._promisify(Gio.FileEnumerator.prototype, 'next_files_async', 'next_files_finish')
+
 // convert to camel case
 const camel = x => x.toLowerCase().replace(/[-:](.)/g, (_, g) => g.toUpperCase())
 
@@ -23,6 +29,21 @@ export const memoize = f => {
 }
 
 export const wait = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+// runs `fn` over `items` with at most `limit` calls in flight at once;
+// letting async (I/O-bound) work overlap instead of awaiting one at a time
+export const mapLimit = async (items, limit, fn) => {
+    const results = new Array(items.length)
+    let i = 0
+    const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+        while (i < items.length) {
+            const index = i++
+            results[index] = await fn(items[index], index)
+        }
+    })
+    await Promise.all(workers)
+    return results
+}
 
 export const debounce = (f, wait, immediate) => {
     let timeout

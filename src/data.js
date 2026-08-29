@@ -114,14 +114,27 @@ export class BookData {
     }
 }
 
+const fingerprintFromInfo = info => ({
+    size: info.get_size(),
+    mtime: info.get_attribute_uint64('time::modified'),
+})
+
 const getFingerprint = file => {
     try {
-        const info = file.query_info('standard::size,time::modified',
-            Gio.FileQueryInfoFlags.NONE, null)
-        return {
-            size: info.get_size(),
-            mtime: info.get_attribute_uint64('time::modified'),
-        }
+        return fingerprintFromInfo(file.query_info('standard::size,time::modified',
+            Gio.FileQueryInfoFlags.NONE, null))
+    } catch {
+        return null
+    }
+}
+
+// async counterpart used by library-scan.js to check many books' source
+// files concurrently (via utils.mapLimit) instead of one at a time
+export const getFingerprintAsync = async file => {
+    try {
+        return fingerprintFromInfo(await file.query_info_async(
+            'standard::size,time::modified', Gio.FileQueryInfoFlags.NONE,
+            GLib.PRIORITY_DEFAULT, null))
     } catch {
         return null
     }
