@@ -105,8 +105,39 @@
     </item>
   </section>
 </menu>
-<template class="FoliateLibrary" parent="GtkBox">
-  <property name="orientation">vertical</property>
+<template class="FoliateLibrary" parent="GtkOverlay">
+  <child type="overlay">
+    <object class="GtkRevealer" id="refresh-revealer">
+      <property name="halign">end</property>
+      <property name="valign">end</property>
+      <property name="margin-end">12</property>
+      <property name="margin-bottom">12</property>
+      <property name="transition-type">crossfade</property>
+      <property name="can-target">false</property>
+      <child>
+        <object class="GtkBox">
+          <property name="spacing">8</property>
+          <property name="margin-start">10</property>
+          <property name="margin-end">14</property>
+          <property name="margin-top">8</property>
+          <property name="margin-bottom">8</property>
+          <style><class name="osd"/></style>
+          <child>
+            <object class="AdwSpinner">
+              <property name="width-request">16</property>
+              <property name="height-request">16</property>
+            </object>
+          </child>
+          <child>
+            <object class="GtkLabel" id="refresh-label">
+              <property name="ellipsize">end</property>
+              <style><class name="caption"/></style>
+            </object>
+          </child>
+        </object>
+      </child>
+    </object>
+  </child>
   <child>
     <object class="AdwBreakpointBin" id="breakpoint-bin">
       <property name="height-request">300</property>
@@ -150,8 +181,7 @@
                   <child type="top">
                     <object class="AdwHeaderBar">
                       <property name="title-widget">
-                        <object class="GtkLabel">
-                          <property name="label" translatable="yes">Library</property>
+                        <object class="GtkLabel" id="library-title">
                           <property name="single-line-mode">True</property>
                           <property name="ellipsize">end</property>
                           <style><class name="title"/></style>

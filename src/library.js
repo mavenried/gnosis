@@ -12,7 +12,7 @@ import * as utils from './utils.js'
 import * as format from './format.js'
 import { exportAnnotations } from './annotations.js'
 import { formatLanguageMap, formatAuthors, makeBookInfoWindow } from './book-info.js'
-import { LibraryFoldersDialog, refreshStaleBooks, scanLibraryFolders } from './library-scan.js'
+import { SettingsDialog, runLibraryRefresh, refreshStatus } from './library-scan.js'
 
 const getURIFromTracker = identifier => {
     const connection = imports.gi.Tracker.SparqlConnection.bus_new(
@@ -82,6 +82,12 @@ export const getURIStore = utils.memoize(() => new URIStore())
 
 const BookList = GObject.registerClass({
     GTypeName: 'FoliateBookList',
+    Properties: utils.makeParams({
+        // total number of books in the library, including any not yet
+        // scrolled into view (unlike get_n_items(), which only counts what's
+        // been lazily loaded so far); kept in sync by delete() and update()
+        'total-count': 'uint',
+    }),
 }, class extends Gio.ListStore {
     #uriStore = getURIStore()
     #files = Array.from(listBooks(pkg.datadir) ?? [])
@@ -90,6 +96,7 @@ const BookList = GObject.registerClass({
     #iter = this.#files.values()
     constructor(params) {
         super(params)
+        this.total_count = this.#files.length
         this.readFile = utils.memoize(utils.readJSONFile)
         // don't use utils.memoize here: it would cache a failed load (e.g. if
         // the cover hasn't finished being written yet) as permanently null
@@ -130,14 +137,22 @@ const BookList = GObject.registerClass({
         this.#uriStore.delete(id)
         for (const f of [file, cover]) try { f.delete(null) } catch {}
         for (const [i, el] of utils.gliter(this)) if (el === file) this.remove(i)
+        this.total_count--
     }
     update(path) {
         // remove it from the queue if it's not yet loaded
         const i = this.#files.findIndex(f => f?.get_path() === path)
+        // a book not found in either place is genuinely new, rather than a
+        // refresh of one we already know about
+        let isNew = i === -1
         // set to null instead of removing it so we don't mess up the iterator
         if (i !== -1) this.#files[i] = null
         // remove it from the list if it has been loaded
-        for (const [i, el] of utils.gliter(this)) if (el.get_path() === path) this.remove(i)
+        for (const [i, el] of utils.gliter(this)) if (el.get_path() === path) {
+            isNew = false
+            this.remove(i)
+        }
+        if (isNew) this.total_count++
         this.insert(0, Gio.File.new_for_path(path))
     }
 })
@@ -665,9 +680,9 @@ sidebarListModel.append(new SidebarItem({
 }))
 sidebarListModel.append(new SidebarItem({
     type: 'action',
-    icon: 'folder-symbolic',
-    label: _('Library Folders…'),
-    value: 'library-folders',
+    icon: 'preferences-system-symbolic',
+    label: _('Settings…'),
+    value: 'settings',
 }))
 
 export const Library = GObject.registerClass({
@@ -679,11 +694,17 @@ export const Library = GObject.registerClass({
         'library-toolbar-view',
         'books-view', 'search-bar', 'search-entry',
         'browse-toolbar-view', 'browse-title', 'browse-list-box',
+        'refresh-revealer', 'refresh-label', 'library-title',
     ],
-}, class extends Gtk.Box {
+}, class extends Gtk.Overlay {
     #browseField = 'authors'
     constructor(params) {
         super(params)
+
+        refreshStatus.bind_property('active', this._refresh_revealer, 'reveal-child',
+            GObject.BindingFlags.SYNC_CREATE)
+        refreshStatus.bind_property('label', this._refresh_label, 'label',
+            GObject.BindingFlags.SYNC_CREATE)
 
         this._breakpoint_bin.add_breakpoint(utils.connect(new Adw.Breakpoint({
             condition: Adw.BreakpointCondition.parse('max-width: 700px'),
@@ -705,7 +726,7 @@ export const Library = GObject.registerClass({
             new Gtk.ListBoxRow({ child: new SidebarRow({ item }) }))
         this._sidebar_list_box.connect('row-activated', (__, row) => {
             const { type, value } = row.child.item
-            if (value === 'library-folders') return this.showLibraryFolders()
+            if (value === 'settings') return this.showSettings()
             if (value === 'library') {
                 this._books_view.clearBrowseFilter()
                 return this._main_stack.visible_child = this._library_toolbar_view
@@ -720,6 +741,11 @@ export const Library = GObject.registerClass({
         })
 
         const books = getBooks()
+
+        const updateTitle = () => this._library_title.label =
+            format.vprintf(_('Library (%d)'), [books.total_count])
+        updateTitle()
+        books.connect('notify::total-count', updateTitle)
 
         utils.connect(this._books_view, {
             'activate': (_, item) => this.root.openFile(books.getBook(item)),
@@ -743,8 +769,9 @@ export const Library = GObject.registerClass({
     }
     async refreshLibrary() {
         try {
-            const { refreshed } = await refreshStaleBooks()
-            const { added } = await scanLibraryFolders()
+            const result = await runLibraryRefresh()
+            if (!result) return
+            const { refreshed, added } = result
             const parts = []
             if (refreshed) parts.push(format.vprintf(ngettext(
                 'Refreshed %d book', 'Refreshed %d books', refreshed), [refreshed]))
@@ -755,9 +782,9 @@ export const Library = GObject.registerClass({
             console.error(e)
         }
     }
-    showLibraryFolders() {
+    showSettings() {
         this._sidebar_list_box.select_row(null)
-        const dialog = new LibraryFoldersDialog()
+        const dialog = new SettingsDialog()
         dialog.present(this.root)
     }
     showBrowse(kind) {
