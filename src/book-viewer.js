@@ -445,7 +445,9 @@ const makeIdentifier = file => {
     }
 }
 
-export const importFiles = files => {
+// `onProgress(done, total)` fires after each file settles, for a caller
+// that wants to show progress (e.g. the library's corner refresh indicator)
+export const importFiles = (files, { onProgress } = {}) => {
     let currentFile
     let resolveFile, rejectFile
     const webView = utils.connect(new WebView({
@@ -494,6 +496,7 @@ export const importFiles = files => {
                             .then(() => true)
                             .catch(e => new Error(e, { cause: e }))
                         results.push([file, await result])
+                        onProgress?.(results.length, files.length)
                     }
                     resolve(results)
                 })
