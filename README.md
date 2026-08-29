@@ -1,22 +1,21 @@
-<img src="data/com.github.mavenried.Gnosis.svg" align="left" style="margin-right:8px">
-<br><br>
 
 # Gnosis
 
-Gnosis is a fork of [Foliate](https://github.com/johnfactotum/foliate) — the
-GTK4/libadwaita EPUB reader by John Factotum — with library-management
-features ported over from [gnosis](https://github.com/mavenried/gnosis-rust),
-a from-scratch Rust reader this project is meant to replace.
+Gnosis is a GTK4/libadwaita EPUB reader built on top of
+[Foliate](https://github.com/johnfactotum/foliate) — John Factotum's reader —
+adding the library-management features from
+[gnosis](https://github.com/mavenried/gnosis-rust), a from-scratch Rust
+reader this project replaces.
 
 The idea: Foliate's actual reading experience (pagination, annotations,
 text-to-speech, dictionary/Wikipedia lookup, footnotes) is more mature than
 what the Rust app had. What the Rust app had that Foliate didn't was
 opinionated library organization — browsing by author/series like a music
 library, watching folders for new books, sorting, and a "mark as read"
-concept. This fork adds those on top of Foliate rather than rebuilding a
-reader from scratch.
+concept. Gnosis adds those on top of Foliate's codebase rather than
+rebuilding a reader from scratch.
 
-## What's different from upstream Foliate
+## What Gnosis adds on top of Foliate
 
 - **Sort & filter**: Sort By (Title, Author, Series, Recently Added,
   Recently Read) and Filter (All/Unread/Reading/Read) in the library menu.
@@ -30,9 +29,9 @@ reader from scratch.
 - **Automatic refresh**: if a book's underlying EPUB file changes (re-exported,
   edited), its cover and metadata are refreshed automatically next time it's
   scanned — no need to remove and re-add it.
-- **Settings**: library folders now live in a Settings dialog (sidebar →
-  Settings…), alongside a "Refresh Now" action that forces every book's
-  metadata and cover to be reloaded from its source file, with a progress
+- **Settings**: library folders live in a Settings dialog (sidebar →
+  Settings…), alongside a "Refresh Now" action that reloads metadata and
+  cover art for any book whose source file has changed, with a progress
   indicator in the corner of the library while it runs.
 - **One-time migration** from a legacy gnosis (Rust) library: "Import from
   Legacy Gnosis…" in the primary menu reads its SQLite database directly and
@@ -42,15 +41,20 @@ reader from scratch.
   the side panel first, then goes back to the library.
 - Renamed application ID (`com.github.mavenried.Gnosis`), so it doesn't
   collide with a real Foliate install's data/config/cache directories.
-- OPDS remote-catalog browsing has been removed — not something this fork
-  needs, and directory scanning covers the "get books into the library"
+- OPDS remote-catalog browsing has been removed — not something this project
+  needs, since directory scanning covers the "get books into the library"
   use case instead.
 
 Everything else — reading, annotations, TTS, dictionary/Wikipedia/translate
-lookups, themes, OPDS's replacement, fonts, keyboard shortcuts — is
-unmodified Foliate.
+lookups, themes, fonts, keyboard shortcuts — comes from Foliate unchanged.
 
 ## Installing
+
+### Prebuilt releases
+
+Tagged releases publish a native tarball and a Flatpak bundle on the
+[Releases page](https://github.com/mavenried/gnosis/releases) — see the
+tarball/Flatpak install steps below for how to use them.
 
 ### Build dependencies
 
@@ -134,20 +138,21 @@ GSETTINGS_SCHEMA_DIR=data gjs -m src/main.js
 
 - **First run**: use *Open…* or *Import from Legacy Gnosis…* (primary menu)
   if you have an existing gnosis Rust library, or add a **Library Folder**
-  from the sidebar to have Gnosis find your EPUBs automatically.
+  from Settings (sidebar → Settings…) to have Gnosis find your EPUBs
+  automatically.
 - **Sorting/filtering** your library and **browsing by author/series** are
   in the library menu and sidebar respectively.
 - **<kbd>Ctrl</kbd>+<kbd>R</kbd>** in the library rescans your folders for
   new books and refreshes any book whose file has changed since it was last
   scanned.
-- Everything else works the same as upstream Foliate — see its own
+- Everything else works the same as in Foliate — see its own
   [documentation](https://github.com/johnfactotum/foliate) and
   [FAQ](https://github.com/johnfactotum/foliate/blob/gtk4/docs/faq.md) for
   reading/annotation/TTS features not covered above.
 
 ## License
 
-GPL-3.0-or-later, same as upstream Foliate. See [COPYING](COPYING).
+GPL-3.0-or-later, same license as Foliate. See [COPYING](COPYING).
 
 Built on [Foliate](https://github.com/johnfactotum/foliate) by John
 Factotum, including its vendored copies of
