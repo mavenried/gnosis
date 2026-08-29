@@ -14,31 +14,33 @@ jobs:
   release:
     name: Build and publish release
     runs-on: ubuntu-24.04
+    # Ubuntu 24.04's packaged gjs (1.80) is older than this project's
+    # required >= 1.82, and there's no newer LTS runner image available yet.
+    # Arch Linux tracks upstream gjs directly and is already the reference
+    # dependency list in the README, so build there instead.
+    container: archlinux:latest
     steps:
+      - name: Install build and packaging tools
+        run: |
+          pacman -Syu --noconfirm --needed \
+            git tar meson ninja pkgconf gettext \
+            gjs gtk4 libadwaita webkitgtk-6.0 \
+            flatpak flatpak-builder \
+            desktop-file-utils appstream github-cli
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install native build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            meson ninja-build pkg-config gettext \
-            gjs libgjs-dev libgtk-4-dev libadwaita-1-dev libwebkitgtk-6.0-dev \
-            desktop-file-utils appstream
-
       - name: Build native tarball
         run: ./build.sh native
 
-      - name: Install Flatpak tooling
-        run: |
-          sudo apt-get install -y flatpak flatpak-builder
-          flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
-          flatpak install --user --noninteractive -y flathub org.gnome.Sdk//49 org.gnome.Platform//49
-
       - name: Build Flatpak bundle
-        run: ./build.sh flatpak
+        run: |
+          flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --noninteractive -y flathub org.gnome.Sdk//49 org.gnome.Platform//49
+          ./build.sh flatpak
 
       - name: List built artifacts
         run: ls -lh dist/
