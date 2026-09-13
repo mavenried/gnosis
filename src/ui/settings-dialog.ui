@@ -50,6 +50,18 @@
               </child>
             </object>
           </child>
+          <child>
+            <object class="AdwActionRow">
+              <property name="title" translatable="yes">Refresh on Startup</property>
+              <property name="subtitle" translatable="yes">Check for new and changed books when the library opens</property>
+              <child type="suffix">
+                <object class="GtkSwitch" id="refresh-on-startup-switch">
+                  <property name="active">true</property>
+                  <property name="valign">center</property>
+                </object>
+              </child>
+            </object>
+          </child>
         </object>
       </child>
     </object>

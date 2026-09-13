@@ -231,6 +231,7 @@ export const SettingsDialog = GObject.registerClass({
     InternalChildren: [
         'folders-list', 'add-button',
         'refresh-row', 'refresh-spinner', 'refresh-button',
+        'refresh-on-startup-switch',
     ],
 }, class extends Adw.PreferencesDialog {
     #defaultSubtitle
@@ -246,6 +247,13 @@ export const SettingsDialog = GObject.registerClass({
         })
         this.connect('closed', () => utils.disconnectWith(this, refreshStatus))
         this.#syncRefreshStatus()
+
+        // Bind the refresh-on-startup switch to the setting
+        const settings = utils.settings('library')
+        if (settings) {
+            settings.bind('refresh-on-startup', this._refresh_on_startup_switch, 'active',
+                Gio.SettingsBindFlags.DEFAULT)
+        }
 
         this.refresh()
     }

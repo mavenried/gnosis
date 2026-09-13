@@ -39,6 +39,11 @@
     <key name="cover-size" type="i">
       <default>256</default>
     </key>
+    <key name="refresh-on-startup" type="b">
+      <default>true</default>
+      <summary>Refresh library on startup</summary>
+      <description>Check for new and changed books when the library opens</description>
+    </key>
   </schema>
 
   <schema id="com.github.mavenried.Gnosis.viewer"

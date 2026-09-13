@@ -765,7 +765,14 @@ export const Library = GObject.registerClass({
         this.add_controller(utils.addShortcuts({
             '<ctrl>r': () => (this.refreshLibrary(), true),
         }))
-        this.refreshLibrary()
+        // Delay refresh to allow UI to initialize, then check if enabled
+        GLib.timeout_add(GLib.PRIORITY_LOW, 2000, () => {
+            const settings = utils.settings('library')
+            if (settings?.get_boolean('refresh-on-startup') ?? true) {
+                this.refreshLibrary()
+            }
+            return GLib.SOURCE_REMOVE
+        })
     }
     async refreshLibrary() {
         try {
