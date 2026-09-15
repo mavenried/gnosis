@@ -39,7 +39,7 @@ rebuilding a reader from scratch.
 - **Reader tweaks**: the side panel no longer stays pinned open across
   books; there's an always-visible back-to-library button; Escape closes
   the side panel first, then goes back to the library.
-- Renamed application ID (`com.github.mavenried.Gnosis`), so it doesn't
+- Renamed application ID (`me.mavenried.Gnosis`), so it doesn't
   collide with a real Foliate install's data/config/cache directories.
 - OPDS remote-catalog browsing has been removed — not something this project
   needs, since directory scanning covers the "get books into the library"

@@ -56,7 +56,7 @@
               <property name="subtitle" translatable="yes">Check for new and changed books when the library opens</property>
               <child type="suffix">
                 <object class="GtkSwitch" id="refresh-on-startup-switch">
-                  <property name="active">true</property>
+                  <property name="active">false</property>
                   <property name="valign">center</property>
                 </object>
               </child>

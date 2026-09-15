@@ -18,7 +18,7 @@ const camel = x => x.toLowerCase().replace(/[-:](.)/g, (_, g) => g.toUpperCase()
 
 export const memoize = f => {
     const memory = new Map()
-    return obj => {
+    const memo = obj => {
         if (memory.has(obj)) return memory.get(obj)
         else {
             const result = f(obj)
@@ -26,6 +26,8 @@ export const memoize = f => {
             return result
         }
     }
+    memo.cache = memory
+    return memo
 }
 
 export const wait = ms => new Promise(resolve => setTimeout(resolve, ms))

@@ -94,19 +94,22 @@ const BookList = GObject.registerClass({
         .sort((a, b) => b.modified - a.modified)
         .map(x => x.file)
     #iter = this.#files.values()
+    #readFileMemo
+    #coverCache
     constructor(params) {
         super(params)
         this.total_count = this.#files.length
-        this.readFile = utils.memoize(utils.readJSONFile)
+        this.#readFileMemo = utils.memoize(utils.readJSONFile)
         // don't use utils.memoize here: it would cache a failed load (e.g. if
         // the cover hasn't finished being written yet) as permanently null
-        const coverCache = new Map()
+        this.#coverCache = new Map()
+        this.readFile = file => this.#readFileMemo(file)
         this.readCover = identifier => {
-            if (coverCache.has(identifier)) return coverCache.get(identifier)
+            if (this.#coverCache.has(identifier)) return this.#coverCache.get(identifier)
             const path = pkg.cachepath(`${encodeURIComponent(identifier)}.png`)
             try {
                 const pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
-                coverCache.set(identifier, pixbuf)
+                this.#coverCache.set(identifier, pixbuf)
                 return pixbuf
             } catch {
                 return null
@@ -139,7 +142,7 @@ const BookList = GObject.registerClass({
         for (const [i, el] of utils.gliter(this)) if (el === file) this.remove(i)
         this.total_count--
     }
-    update(path) {
+    update(path, { invalidateCache = false } = {}) {
         // remove it from the queue if it's not yet loaded
         const i = this.#files.findIndex(f => f?.get_path() === path)
         // a book not found in either place is genuinely new, rather than a
@@ -147,9 +150,16 @@ const BookList = GObject.registerClass({
         let isNew = i === -1
         // set to null instead of removing it so we don't mess up the iterator
         if (i !== -1) this.#files[i] = null
-        // remove it from the list if it has been loaded
+        // remove it from the list if it has been loaded; when the source EPUB
+        // was actually re-imported (invalidateCache=true) also evict the stale
+        // readFile and cover cache entries so the next bind() reads fresh data
         for (const [i, el] of utils.gliter(this)) if (el.get_path() === path) {
             isNew = false
+            if (invalidateCache) {
+                const identifier = this.#readFileMemo(el)?.metadata?.identifier
+                if (identifier) this.#coverCache.delete(identifier)
+                this.#readFileMemo.cache.delete(el)
+            }
             this.remove(i)
         }
         if (isNew) this.total_count++
@@ -778,12 +788,14 @@ export const Library = GObject.registerClass({
         try {
             const result = await runLibraryRefresh()
             if (!result) return
-            const { refreshed, added } = result
+            const { refreshed, added, removed } = result
             const parts = []
             if (refreshed) parts.push(format.vprintf(ngettext(
                 'Refreshed %d book', 'Refreshed %d books', refreshed), [refreshed]))
             if (added) parts.push(format.vprintf(ngettext(
                 'Added %d book', 'Added %d books', added), [added]))
+            if (removed) parts.push(format.vprintf(ngettext(
+                'Removed %d book', 'Removed %d books', removed), [removed]))
             if (parts.length) this.root?.add_toast(new Adw.Toast({ title: parts.join(' · ') }))
         } catch (e) {
             console.error(e)

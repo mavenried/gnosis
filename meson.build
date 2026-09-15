@@ -1,4 +1,4 @@
-project('com.github.mavenried.Gnosis',
+project('me.mavenried.Gnosis',
     version: '3.4.0',
     meson_version: '>= 0.59.0',
 )
