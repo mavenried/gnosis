@@ -286,7 +286,10 @@ const BookItem = GObject.registerClass({
 const BookRow = GObject.registerClass({
     GTypeName: 'FoliateBookRow',
     Template: pkg.moduleuri('ui/book-row.ui'),
-    InternalChildren: ['title', 'author', 'progress-grid', 'progress-bar', 'progress-label'],
+    InternalChildren: [
+        'cover-overlay', 'cover-frame', 'cover-image', 'cover-fallback',
+        'title', 'author', 'progress-grid', 'progress-bar', 'progress-label',
+    ],
     Signals: {
         'open-new-window': { param_types: [Gio.File.$gtype] },
         'remove-book': { param_types: [Gio.File.$gtype] },
@@ -308,7 +311,7 @@ const BookRow = GObject.registerClass({
             'toggle-read': () => this.emit('toggle-read', this.#item),
         }))
     }
-    update(item, data) {
+    update(item, data, cover) {
         this.#item = item
         const { metadata, progress } = data
         const title = formatLanguageMap(metadata?.title)
@@ -317,6 +320,22 @@ const BookRow = GObject.registerClass({
         const author = formatAuthors(metadata)
         this._author.label = author
         this._author.visible = Boolean(author)
+
+        if (showCovers) {
+            this._cover_overlay.visible = true
+            const pixbuf = cover?.then ? null : cover
+            if (pixbuf) {
+                this._cover_fallback.visible = false
+                this._cover_image.set_pixbuf(pixbuf)
+                this._cover_image.opacity = 1
+            } else {
+                this._cover_image.set_pixbuf(defaultPixbuf)
+                this._cover_image.opacity = 0
+                this._cover_fallback.visible = true
+            }
+        } else {
+            this._cover_overlay.visible = false
+        }
 
         const frac = fraction(progress)
         this._progress_bar.fraction = frac
@@ -515,8 +534,11 @@ GObject.registerClass({
                     'setup': (_, item) => item.child = utils.connect(
                         new BookRow(), this.#itemConnections),
                     'bind': (_, { child, item }) => {
-                        const { data } = this.#getData(item, false)
-                        child.update(item, data)
+                        const { cover, data } = this.#getData(item, showCovers)
+                        child.update(item, data, cover)
+                        if (cover?.then) cover
+                            .then(cover => child.update(item, data, cover))
+                            .catch(e => console.warn(e))
                     },
                 }),
             }), 'book-list'), { 'activate': (_, pos) =>

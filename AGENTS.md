@@ -27,6 +27,8 @@ themes) is inherited from Foliate unchanged.
 
 There is no database. Each book's metadata, progress, annotations, and
 bookmarks live in a single JSON file named `<encodeURIComponent(identifier)>.json`.
+Identifiers are derived deterministically from the SHA-256 hash of the normalized file
+path (`gnosis:<sha256>`), ensuring every unique file on disk maps to its own entry.
 Cover art is cached as `<encodeURIComponent(identifier)>.png` in
 `$XDG_CACHE_HOME/…`.
 
