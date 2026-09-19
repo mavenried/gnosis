@@ -1,4 +1,3 @@
-
 # Gnosis
 
 Gnosis is a GTK4/libadwaita EPUB reader built on top of
@@ -139,7 +138,7 @@ GSETTINGS_SCHEMA_DIR=data gjs -m src/main.js
 
 ## Using it
 
-- **First run**: use *Open…* or *Import from Legacy Gnosis…* (primary menu)
+- **First run**: use _Open…_ or _Import from Legacy Gnosis…_ (primary menu)
   if you have an existing gnosis Rust library, or add a **Library Folder**
   from Settings (sidebar → Settings…) to have Gnosis find your EPUBs
   automatically.
