@@ -16,14 +16,14 @@ themes) is inherited from Foliate unchanged.
 
 ## Stack
 
-| Layer | Technology |
-|---|---|
-| Language | GJS (GNOME JavaScript, ES modules via `gjs -m`) |
-| UI toolkit | GTK4 + libadwaita |
-| Rendering | WebKitGTK — book content is rendered in a `WebView` |
+| Layer        | Technology                                                                                    |
+| ------------ | --------------------------------------------------------------------------------------------- |
+| Language     | GJS (GNOME JavaScript, ES modules via `gjs -m`)                                               |
+| UI toolkit   | GTK4 + libadwaita                                                                             |
+| Rendering    | WebKitGTK — book content is rendered in a `WebView`                                           |
 | Book parsing | [`foliate-js`](https://github.com/johnfactotum/foliate-js) (git submodule, `src/foliate-js/`) |
-| Build | Meson + `build.sh` wrapper |
-| Data format | JSON files per-book in `$XDG_DATA_HOME/me.mavenried.Gnosis/` |
+| Build        | Meson + `build.sh` wrapper                                                                    |
+| Data format  | JSON files per-book in `$XDG_DATA_HOME/me.mavenried.Gnosis/`                                  |
 
 There is no database. Each book's metadata, progress, annotations, and
 bookmarks live in a single JSON file named `<encodeURIComponent(identifier)>.json`.
@@ -34,20 +34,20 @@ Cover art is cached as `<encodeURIComponent(identifier)>.png` in
 
 ## Key source files
 
-| File | Purpose |
-|---|---|
-| `src/main.js` | GJS entry point — creates the `Gio.Application` |
-| `src/app.js` | `ApplicationWindow`, primary menu, file-open, window management |
-| `src/library.js` | `BookList` (the in-memory list model), `LibraryView` (GTK list/grid), `Library` widget (sidebar + search + browse), `URIStore` |
-| `src/library-scan.js` | Folder watching, `scanLibraryFolders`, `refreshStaleBooks`, `refreshAllBooks`, `runLibraryRefresh`, `SettingsDialog` |
-| `src/data.js` | `BookData` (per-book storage: progress, annotations, bookmarks, cover, fingerprint), `BookDataStore` |
-| `src/book-viewer.js` | `BookViewer` widget, `importFiles` pipeline (extract metadata → save cover → write JSON) |
-| `src/gnosis-import.js` | One-time migration from gnosis-rust's SQLite database |
-| `src/utils.js` | Shared utilities: `memoize`, `JSONStorage`, `mapLimit`, GTK helpers |
-| `src/format.js` | Number/string formatting helpers |
-| `src/annotations.js` | Annotation and bookmark models |
-| `src/webview.js` | `WebView` wrapper around WebKitGTK |
-| `src/foliate-js/` | Vendored book-parsing submodule (do not edit) |
+| File                   | Purpose                                                                                                                        |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `src/main.js`          | GJS entry point — creates the `Gio.Application`                                                                                |
+| `src/app.js`           | `ApplicationWindow`, primary menu, file-open, window management                                                                |
+| `src/library.js`       | `BookList` (the in-memory list model), `LibraryView` (GTK list/grid), `Library` widget (sidebar + search + browse), `URIStore` |
+| `src/library-scan.js`  | Folder watching, `scanLibraryFolders`, `refreshStaleBooks`, `refreshAllBooks`, `runLibraryRefresh`, `SettingsDialog`           |
+| `src/data.js`          | `BookData` (per-book storage: progress, annotations, bookmarks, cover, fingerprint), `BookDataStore`                           |
+| `src/book-viewer.js`   | `BookViewer` widget, `importFiles` pipeline (extract metadata → save cover → write JSON)                                       |
+| `src/gnosis-import.js` | One-time migration from gnosis-rust's SQLite database                                                                          |
+| `src/utils.js`         | Shared utilities: `memoize`, `JSONStorage`, `mapLimit`, GTK helpers                                                            |
+| `src/format.js`        | Number/string formatting helpers                                                                                               |
+| `src/annotations.js`   | Annotation and bookmark models                                                                                                 |
+| `src/webview.js`       | `WebView` wrapper around WebKitGTK                                                                                             |
+| `src/foliate-js/`      | Vendored book-parsing submodule (do not edit)                                                                                  |
 
 ## Architecture notes
 
@@ -86,11 +86,13 @@ progress/annotation saves (cover and metadata are unchanged, eviction is
 wasteful).
 
 Call sites that pass `invalidateCache: true`:
+
 - `refreshStaleBooks` (stale EPUB detected, re-imported)
 - `refreshAllBooks` (full refresh via Settings → Refresh Now)
 - `importFromGnosis` (first-time migration import)
 
 Call sites that use the default (`false`):
+
 - `JSONStorage 'modified'` signal in `data.js` (progress/annotation save)
 - `toggleRead` in `library.js`
 
@@ -117,8 +119,8 @@ Returns a memoized function with a `.cache` property exposing the internal
 `Map`, so callers can surgically evict entries:
 
 ```js
-const memo = utils.memoize(fn)
-memo.cache.delete(key)   // evict one entry
+const memo = utils.memoize(fn);
+memo.cache.delete(key); // evict one entry
 ```
 
 ### `utils.mapLimit(items, limit, fn)`
@@ -161,7 +163,7 @@ syntax; GObject/GLib imports come from `gi://` URIs.
 - **No top-level `await`**: GJS ES modules don't support top-level await; async work is kicked off in constructors or signal handlers.
 - **Async I/O**: prefer `_async` GIO variants promisified via `Gio._promisify` (see top of `utils.js`) rather than blocking calls on the main thread, especially in scan/refresh loops.
 
-## What *not* to touch
+## What _not_ to touch
 
 - `src/foliate-js/` — vendored submodule. Upstream changes go there; don't edit locally unless fixing a Gnosis-specific bug that can't live elsewhere.
 - `src/webview.js` / book rendering internals — inherited from Foliate; changes here risk breaking the reading experience in subtle ways.
