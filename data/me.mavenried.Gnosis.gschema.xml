@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<schemalist gettext-domain="com.github.mavenried.Gnosis">
-  <schema id="com.github.mavenried.Gnosis" path="/com/github/mavenried/Gnosis/">
-    <child schema="com.github.mavenried.Gnosis.window" name="window"/>
-    <child schema="com.github.mavenried.Gnosis.viewer" name="library"/>
-    <child schema="com.github.mavenried.Gnosis.viewer" name="viewer"/>
+<schemalist gettext-domain="me.mavenried.Gnosis">
+  <schema id="me.mavenried.Gnosis" path="/me/mavenried/Gnosis/">
+    <child schema="me.mavenried.Gnosis.window" name="window"/>
+    <child schema="me.mavenried.Gnosis.viewer" name="library"/>
+    <child schema="me.mavenried.Gnosis.viewer" name="viewer"/>
     <key name="color-scheme" type="i">
       <default>0</default>
     </key>
   </schema>
 
-  <schema id="com.github.mavenried.Gnosis.window"
-    path="/com/github/mavenried/Gnosis/window/">
+  <schema id="me.mavenried.Gnosis.window"
+    path="/me/mavenried/Gnosis/window/">
     <key name="default-width" type="i">
       <default>1200</default>
     </key>
@@ -25,8 +25,8 @@
     </key>
   </schema>
 
-  <schema id="com.github.mavenried.Gnosis.library"
-    path="/com/github/mavenried/Gnosis/library/">
+  <schema id="me.mavenried.Gnosis.library"
+    path="/me/mavenried/Gnosis/library/">
     <key name="view-mode" type="s">
       <default>'grid'</default>
     </key>
@@ -39,12 +39,17 @@
     <key name="cover-size" type="i">
       <default>256</default>
     </key>
+    <key name="refresh-on-startup" type="b">
+      <default>false</default>
+      <summary>Refresh library on startup</summary>
+      <description>Check for new and changed books when the library opens</description>
+    </key>
   </schema>
 
-  <schema id="com.github.mavenried.Gnosis.viewer"
-    path="/com/github/mavenried/Gnosis/viewer/">
-    <child schema="com.github.mavenried.Gnosis.viewer.view" name="view"/>
-    <child schema="com.github.mavenried.Gnosis.viewer.font" name="font"/>
+  <schema id="me.mavenried.Gnosis.viewer"
+    path="/me/mavenried/Gnosis/viewer/">
+    <child schema="me.mavenried.Gnosis.viewer.view" name="view"/>
+    <child schema="me.mavenried.Gnosis.viewer.font" name="font"/>
     <key name="fold-sidebar" type="b">
       <default>false</default>
     </key>
@@ -56,8 +61,8 @@
     </key>
   </schema>
 
-  <schema id="com.github.mavenried.Gnosis.viewer.view"
-    path="/com/github/mavenried/Gnosis/viewer/view/">
+  <schema id="me.mavenried.Gnosis.viewer.view"
+    path="/me/mavenried/Gnosis/viewer/view/">
     <key name="brightness" type="d">
       <default>1</default>
     </key>
@@ -102,8 +107,8 @@
     </key>
   </schema>
 
-  <schema id="com.github.mavenried.Gnosis.viewer.font"
-    path="/com/github/mavenried/Gnosis/viewer/font/">
+  <schema id="me.mavenried.Gnosis.viewer.font"
+    path="/me/mavenried/Gnosis/viewer/font/">
     <key name="serif" type="s">
       <default>'Serif'</default>
     </key>

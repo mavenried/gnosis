@@ -10,6 +10,11 @@ export const themes = [
         dark: { fg: '#e0e0e0', bg: '#222222', link: '#77bbee' },
     },
     {
+        name: 'black', label: _('Black'),
+        light: { fg: '#000000', bg: '#ffffff', link: '#0066cc' },
+        dark: { fg: '#e0e0e0', bg: '#000000', link: '#77bbee' },
+    },
+    {
         name: 'gray', label: _('Gray'),
         light: { fg: '#222222', bg: '#e0e0e0', link: '#4488cc' },
         dark: { fg: '#c6c6c6', bg: '#444444', link: '#88ccee' },

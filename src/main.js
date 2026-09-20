@@ -13,7 +13,7 @@ import { setConsoleLogDomain } from 'console'
 
 // mimics (loosely) the `pkg` object set up by GJS if you run `package.init()`
 globalThis.pkg = {
-    name: 'com.github.mavenried.Gnosis',
+    name: 'me.mavenried.Gnosis',
     version: '3.4.0',
     MESON,
 }

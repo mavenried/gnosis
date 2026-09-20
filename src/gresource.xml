@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-  <gresource prefix="/com/github/mavenried/Gnosis">
+  <gresource prefix="/me/mavenried/Gnosis">
     <file>annotations.js</file>
     <file>app.js</file>
     <file>book-info.js</file>

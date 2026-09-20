@@ -94,19 +94,22 @@ const BookList = GObject.registerClass({
         .sort((a, b) => b.modified - a.modified)
         .map(x => x.file)
     #iter = this.#files.values()
+    #readFileMemo
+    #coverCache
     constructor(params) {
         super(params)
         this.total_count = this.#files.length
-        this.readFile = utils.memoize(utils.readJSONFile)
+        this.#readFileMemo = utils.memoize(utils.readJSONFile)
         // don't use utils.memoize here: it would cache a failed load (e.g. if
         // the cover hasn't finished being written yet) as permanently null
-        const coverCache = new Map()
+        this.#coverCache = new Map()
+        this.readFile = file => this.#readFileMemo(file)
         this.readCover = identifier => {
-            if (coverCache.has(identifier)) return coverCache.get(identifier)
+            if (this.#coverCache.has(identifier)) return this.#coverCache.get(identifier)
             const path = pkg.cachepath(`${encodeURIComponent(identifier)}.png`)
             try {
                 const pixbuf = GdkPixbuf.Pixbuf.new_from_file(path)
-                coverCache.set(identifier, pixbuf)
+                this.#coverCache.set(identifier, pixbuf)
                 return pixbuf
             } catch {
                 return null
@@ -139,7 +142,7 @@ const BookList = GObject.registerClass({
         for (const [i, el] of utils.gliter(this)) if (el === file) this.remove(i)
         this.total_count--
     }
-    update(path) {
+    update(path, { invalidateCache = false } = {}) {
         // remove it from the queue if it's not yet loaded
         const i = this.#files.findIndex(f => f?.get_path() === path)
         // a book not found in either place is genuinely new, rather than a
@@ -147,9 +150,16 @@ const BookList = GObject.registerClass({
         let isNew = i === -1
         // set to null instead of removing it so we don't mess up the iterator
         if (i !== -1) this.#files[i] = null
-        // remove it from the list if it has been loaded
+        // remove it from the list if it has been loaded; when the source EPUB
+        // was actually re-imported (invalidateCache=true) also evict the stale
+        // readFile and cover cache entries so the next bind() reads fresh data
         for (const [i, el] of utils.gliter(this)) if (el.get_path() === path) {
             isNew = false
+            if (invalidateCache) {
+                const identifier = this.#readFileMemo(el)?.metadata?.identifier
+                if (identifier) this.#coverCache.delete(identifier)
+                this.#readFileMemo.cache.delete(el)
+            }
             this.remove(i)
         }
         if (isNew) this.total_count++
@@ -276,7 +286,10 @@ const BookItem = GObject.registerClass({
 const BookRow = GObject.registerClass({
     GTypeName: 'FoliateBookRow',
     Template: pkg.moduleuri('ui/book-row.ui'),
-    InternalChildren: ['title', 'author', 'progress-grid', 'progress-bar', 'progress-label'],
+    InternalChildren: [
+        'cover-overlay', 'cover-frame', 'cover-image', 'cover-fallback',
+        'title', 'author', 'progress-grid', 'progress-bar', 'progress-label',
+    ],
     Signals: {
         'open-new-window': { param_types: [Gio.File.$gtype] },
         'remove-book': { param_types: [Gio.File.$gtype] },
@@ -298,7 +311,7 @@ const BookRow = GObject.registerClass({
             'toggle-read': () => this.emit('toggle-read', this.#item),
         }))
     }
-    update(item, data) {
+    update(item, data, cover) {
         this.#item = item
         const { metadata, progress } = data
         const title = formatLanguageMap(metadata?.title)
@@ -307,6 +320,22 @@ const BookRow = GObject.registerClass({
         const author = formatAuthors(metadata)
         this._author.label = author
         this._author.visible = Boolean(author)
+
+        if (showCovers) {
+            this._cover_overlay.visible = true
+            const pixbuf = cover?.then ? null : cover
+            if (pixbuf) {
+                this._cover_fallback.visible = false
+                this._cover_image.set_pixbuf(pixbuf)
+                this._cover_image.opacity = 1
+            } else {
+                this._cover_image.set_pixbuf(defaultPixbuf)
+                this._cover_image.opacity = 0
+                this._cover_fallback.visible = true
+            }
+        } else {
+            this._cover_overlay.visible = false
+        }
 
         const frac = fraction(progress)
         this._progress_bar.fraction = frac
@@ -505,8 +534,11 @@ GObject.registerClass({
                     'setup': (_, item) => item.child = utils.connect(
                         new BookRow(), this.#itemConnections),
                     'bind': (_, { child, item }) => {
-                        const { data } = this.#getData(item, false)
-                        child.update(item, data)
+                        const { cover, data } = this.#getData(item, showCovers)
+                        child.update(item, data, cover)
+                        if (cover?.then) cover
+                            .then(cover => child.update(item, data, cover))
+                            .catch(e => console.warn(e))
                     },
                 }),
             }), 'book-list'), { 'activate': (_, pos) =>
@@ -765,18 +797,27 @@ export const Library = GObject.registerClass({
         this.add_controller(utils.addShortcuts({
             '<ctrl>r': () => (this.refreshLibrary(), true),
         }))
-        this.refreshLibrary()
+        // Delay refresh to allow UI to initialize, then check if enabled
+        GLib.timeout_add(GLib.PRIORITY_LOW, 2000, () => {
+            const settings = utils.settings('library')
+            if (settings?.get_boolean('refresh-on-startup') ?? true) {
+                this.refreshLibrary()
+            }
+            return GLib.SOURCE_REMOVE
+        })
     }
     async refreshLibrary() {
         try {
             const result = await runLibraryRefresh()
             if (!result) return
-            const { refreshed, added } = result
+            const { refreshed, added, removed } = result
             const parts = []
             if (refreshed) parts.push(format.vprintf(ngettext(
                 'Refreshed %d book', 'Refreshed %d books', refreshed), [refreshed]))
             if (added) parts.push(format.vprintf(ngettext(
                 'Added %d book', 'Added %d books', added), [added]))
+            if (removed) parts.push(format.vprintf(ngettext(
+                'Removed %d book', 'Removed %d books', removed), [removed]))
             if (parts.length) this.root?.add_toast(new Adw.Toast({ title: parts.join(' · ') }))
         } catch (e) {
             console.error(e)

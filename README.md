@@ -1,4 +1,3 @@
-
 # Gnosis
 
 Gnosis is a GTK4/libadwaita EPUB reader built on top of
@@ -26,27 +25,30 @@ rebuilding a reader from scratch.
 - **Library Folders**: point Gnosis at folders (recursively) and it finds
   and imports EPUBs automatically — on launch, on demand (<kbd>Ctrl</kbd>+<kbd>R</kbd>),
   or whenever you add a folder.
-- **Automatic refresh**: if a book's underlying EPUB file changes (re-exported,
+- **Automatic refresh & cleanup**: if a book's underlying EPUB file changes (re-exported,
   edited), its cover and metadata are refreshed automatically next time it's
-  scanned — no need to remove and re-add it.
+  scanned — no need to remove and re-add it. Books whose source files no longer
+  exist are automatically pruned from the library.
 - **Settings**: library folders live in a Settings dialog (sidebar →
-  Settings…), alongside a "Refresh Now" action that reloads metadata and
-  cover art for any book whose source file has changed, with a progress
-  indicator in the corner of the library while it runs.
+  Settings…), alongside a "Refresh on Startup" toggle and a "Refresh Now" action
+  that reloads metadata and cover art for any book whose source file has changed,
+  with a progress indicator in the corner of the library while it runs.
+- **Pure Black Theme**: an OLED-friendly pitch-black theme in addition to
+  Foliate's built-in reading themes.
 - **One-time migration** from a legacy gnosis (Rust) library: "Import from
   Legacy Gnosis…" in the primary menu reads its SQLite database directly and
   re-imports each book, carrying over reading progress and position.
 - **Reader tweaks**: the side panel no longer stays pinned open across
   books; there's an always-visible back-to-library button; Escape closes
   the side panel first, then goes back to the library.
-- Renamed application ID (`com.github.mavenried.Gnosis`), so it doesn't
+- Renamed application ID (`me.mavenried.Gnosis`), so it doesn't
   collide with a real Foliate install's data/config/cache directories.
 - OPDS remote-catalog browsing has been removed — not something this project
   needs, since directory scanning covers the "get books into the library"
   use case instead.
 
 Everything else — reading, annotations, TTS, dictionary/Wikipedia/translate
-lookups, themes, fonts, keyboard shortcuts — comes from Foliate unchanged.
+lookups, fonts, keyboard shortcuts — comes from Foliate unchanged.
 
 ## Installing
 
@@ -136,15 +138,15 @@ GSETTINGS_SCHEMA_DIR=data gjs -m src/main.js
 
 ## Using it
 
-- **First run**: use *Open…* or *Import from Legacy Gnosis…* (primary menu)
+- **First run**: use _Open…_ or _Import from Legacy Gnosis…_ (primary menu)
   if you have an existing gnosis Rust library, or add a **Library Folder**
   from Settings (sidebar → Settings…) to have Gnosis find your EPUBs
   automatically.
 - **Sorting/filtering** your library and **browsing by author/series** are
   in the library menu and sidebar respectively.
 - **<kbd>Ctrl</kbd>+<kbd>R</kbd>** in the library rescans your folders for
-  new books and refreshes any book whose file has changed since it was last
-  scanned.
+  new books, refreshes any book whose file has changed since it was last
+  scanned, and cleans up entries for deleted files.
 - Everything else works the same as in Foliate — see its own
   [documentation](https://github.com/johnfactotum/foliate) and
   [FAQ](https://github.com/johnfactotum/foliate/blob/gtk4/docs/faq.md) for

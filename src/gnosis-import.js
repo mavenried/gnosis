@@ -92,7 +92,7 @@ export const importFromGnosis = async dbPath => {
             } catch (e) {
                 console.warn(e)
             }
-            getBookList()?.update(storage.path)
+            getBookList()?.update(storage.path, { invalidateCache: true })
             imported++
         })
     }

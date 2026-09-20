@@ -142,6 +142,7 @@ export const refreshStaleBooks = async (onProgress) => {
 
     const jsonFiles = Array.from(utils.gliter(books), ([, file]) => file)
     const stale = []
+    const missing = []
     let checked = 0
     await utils.mapLimit(jsonFiles, CONCURRENCY, async jsonFile => {
         try {
@@ -155,6 +156,9 @@ export const refreshStaleBooks = async (onProgress) => {
                     const stored = data.sourceFingerprint
                     if (!stored || stored.size !== fp.size || stored.mtime !== fp.mtime)
                         stale.push({ sourceFile, jsonPath: jsonFile.get_path() })
+                } else if (sourceFile) {
+                    // uri was recorded but the file no longer exists
+                    missing.push(jsonFile)
                 }
             }
         } finally {
@@ -163,10 +167,11 @@ export const refreshStaleBooks = async (onProgress) => {
         }
     })
 
-    if (!stale.length) return { refreshed: 0 }
+    for (const jsonFile of missing) books.delete(jsonFile)
+    if (!stale.length) return { refreshed: 0, removed: missing.length }
     await importFiles(stale.map(x => x.sourceFile))
-    for (const { jsonPath } of stale) if (jsonPath) books.update(jsonPath)
-    return { refreshed: stale.length }
+    for (const { jsonPath } of stale) if (jsonPath) books.update(jsonPath, { invalidateCache: true })
+    return { refreshed: stale.length, removed: missing.length }
 }
 
 // re-extracts metadata and cover art for every book whose source file's
@@ -202,19 +207,19 @@ export const refreshAllBooks = async (onProgress) => {
     if (!targets.length) return { refreshed: 0 }
 
     await importFiles(targets.map(x => x.sourceFile), { onProgress })
-    for (const { jsonPath } of targets) books.update(jsonPath)
+    for (const { jsonPath } of targets) books.update(jsonPath, { invalidateCache: true })
     return { refreshed: targets.length }
 }
 
 // runs the lightweight startup/Ctrl+R refresh: pick up any source-file
 // changes for existing books, then look for newly added files
 export const runLibraryRefresh = () => withRefreshStatus(_('Checking library…'), async () => {
-    const { refreshed } = await refreshStaleBooks((done, total) =>
+    const { refreshed, removed } = await refreshStaleBooks((done, total) =>
         refreshStatus.label = format.vprintf(_('Checking books… (%d/%d)'), [done, total]))
     refreshStatus.label = _('Scanning library folders…')
     const { added } = await scanLibraryFolders((done, total) =>
         refreshStatus.label = format.vprintf(_('Importing books… (%d/%d)'), [done, total]))
-    return { refreshed, added }
+    return { refreshed, added, removed }
 })
 
 // runs a metadata + cover refresh of every book whose source has changed
@@ -231,6 +236,7 @@ export const SettingsDialog = GObject.registerClass({
     InternalChildren: [
         'folders-list', 'add-button',
         'refresh-row', 'refresh-spinner', 'refresh-button',
+        'refresh-on-startup-switch',
     ],
 }, class extends Adw.PreferencesDialog {
     #defaultSubtitle
@@ -246,6 +252,13 @@ export const SettingsDialog = GObject.registerClass({
         })
         this.connect('closed', () => utils.disconnectWith(this, refreshStatus))
         this.#syncRefreshStatus()
+
+        // Bind the refresh-on-startup switch to the setting
+        const settings = utils.settings('library')
+        if (settings) {
+            settings.bind('refresh-on-startup', this._refresh_on_startup_switch, 'active',
+                Gio.SettingsBindFlags.DEFAULT)
+        }
 
         this.refresh()
     }

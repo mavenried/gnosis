@@ -431,15 +431,18 @@ const autohide = (revealer, shouldStayVisible) => {
     return { show, hide, sync }
 }
 
-const makeIdentifier = file => {
+export const makeIdentifier = file => {
     try {
-        const stream = file.read(null)
-        // 10000000 might not be the best value but I guess we will stick to it
-        // for compatibility with previous versions
-        const bytes = stream.read_bytes(10000000, null)
-        const md5 = GLib.compute_checksum_for_bytes(GLib.ChecksumType.MD5, bytes)
-        return `foliate:${md5}`
-    } catch(e) {
+        if (!file) return null
+        const isGioFile = typeof file.get_path === 'function'
+        const path = isGioFile ? file.get_path() : (typeof file === 'string' && !file.includes('://') ? file : null)
+        const uri = isGioFile ? file.get_uri() : (typeof file === 'string' ? file : null)
+        const home = GLib.get_home_dir()
+        const value = path ? (path.startsWith(home) ? path.replace(home, '~') : path) : uri
+        if (!value) return null
+        const hash = GLib.compute_checksum_for_string(GLib.ChecksumType.SHA256, value, -1)
+        return `gnosis:${hash}`
+    } catch (e) {
         console.warn(e)
         return null
     }
@@ -461,7 +464,7 @@ export const importFiles = (files, { onProgress } = {}) => {
             (req.select_files([encodeURI(currentFile.get_path())]), true),
     })
     const save = async book => {
-        book.metadata.identifier ||= makeIdentifier(currentFile)
+        book.metadata.identifier = makeIdentifier(currentFile)
         const { identifier } = book.metadata
         if (!identifier) throw new Error('Could not get identifier')
         const data = new BookData(identifier)
@@ -840,7 +843,7 @@ export const BookViewer = GObject.registerClass({
             this._book_cover.hide()
         }
 
-        book.metadata.identifier ||= makeIdentifier(this.#file)
+        book.metadata.identifier = makeIdentifier(this.#file)
         const { identifier } = book.metadata
         if (identifier) {
             this.#data = await dataStore.get(identifier, this._view)

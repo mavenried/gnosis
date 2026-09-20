@@ -1,5 +1,5 @@
 {
-    "app-id" : "com.github.mavenried.Gnosis",
+    "app-id" : "me.mavenried.Gnosis",
     "runtime" : "org.gnome.Sdk",
     "runtime-version" : "49",
     "sdk" : "org.gnome.Sdk",

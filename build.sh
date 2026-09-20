@@ -11,7 +11,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIST_DIR="$ROOT_DIR/dist"
-APP_ID="com.github.mavenried.Gnosis"
+APP_ID="me.mavenried.Gnosis"
 VERSION="$(sed -nE "s/.*version: *'([^']+)'.*/\1/p" "$ROOT_DIR/meson.build" | head -1)"
 ARCH="$(uname -m)"
 
