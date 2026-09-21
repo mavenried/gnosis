@@ -477,13 +477,16 @@ GObject.registerClass({
     Properties: utils.makeParams({
         'view-mode': 'string',
         'sort-by': 'string',
-        'status-filter': 'string',
+        'filter-unread': 'boolean',
+        'filter-reading': 'boolean',
+        'filter-read': 'boolean',
     }),
     Signals: {
         'load-more': { return_type: GObject.TYPE_BOOLEAN },
         'load-all': {},
         'activate': { param_types: [GObject.TYPE_OBJECT] },
         'selection-changed': { param_types: [GObject.TYPE_UINT] },
+        'filter-changed': {},
     },
 }, class extends Gtk.Stack {
     #done = false
@@ -518,9 +521,27 @@ GObject.registerClass({
         'open-external-app': (_, file) => this.openWithExternalApp(getBooks().getBook(file)),
         'toggle-read': (_, file) => this.toggleRead(file),
     }
-    actionGroup = utils.addMethods(this, {
-        props: ['view-mode', 'sort-by', 'status-filter'],
-    })
+    actionGroup = (() => {
+        const group = utils.addMethods(this, {
+            props: ['view-mode', 'sort-by'],
+        })
+        for (const name of ['unread', 'reading', 'read']) {
+            const action = new Gio.SimpleAction({
+                name: `filter-${name}`,
+                state: new GLib.Variant('b', false),
+            })
+            action.connect('activate', () => {
+                action.set_state(new GLib.Variant('b', !action.state.get_boolean()))
+                this[`filter_${name}`] = action.state.get_boolean()
+                this.emit('filter-changed')
+            })
+            group.add_action(action)
+        }
+        group.add_action(new Gio.SimpleAction({
+            name: 'show-filter',
+        }))
+        return group
+    })()
     constructor(params) {
         super(params)
         utils.connect(this._scrolled.vadjustment, {
@@ -531,7 +552,8 @@ GObject.registerClass({
         this.connect('notify::view-mode', show)
         show()
         this.connect('notify::sort-by', () => this.#applySort())
-        this.connect('notify::status-filter', () => this.#applyStatus())
+        for (const name of ['unread', 'reading', 'read'])
+            this.connect(`notify::filter-${name}`, () => this.#applyStatus())
     }
     #checkAdjustment(adj) {
         if (this.#done) return
@@ -655,15 +677,16 @@ GObject.registerClass({
         })
     }
     #applyStatus() {
-        const status = this.status_filter || 'all'
-        if (status === 'all') {
+        const filters = ['unread', 'reading', 'read']
+            .filter(name => this[`filter_${name}`])
+        if (!filters.length) {
             this.#statusFilter.set_filter_func(null)
             return
         }
         this.emit('load-all')
         const { readFile } = this.#filterModel.model
         this.#statusFilter.set_filter_func(file =>
-            readingStatus(readFile(file)?.progress) === status)
+            filters.includes(readingStatus(readFile(file)?.progress)))
     }
     setBrowseFilter(field, value) {
         this.emit('load-all')
@@ -829,6 +852,7 @@ export const Library = GObject.registerClass({
         'sidebar-list-box', 'main-stack',
         'library-toolbar-view',
         'books-view', 'search-bar', 'search-entry',
+        'library-menu-button',
         'selection-count', 'selection-clear', 'selection-read', 'selection-unread',
         'selection-remove',
         'browse-toolbar-view', 'browse-title', 'browse-list-box',
@@ -886,7 +910,10 @@ export const Library = GObject.registerClass({
         books.connect('notify::total-count', updateTitle)
 
         utils.connect(this._books_view, {
-            'activate': (_, item) => this.root.openFile(books.getBook(item)),
+            'activate': (_, item) => {
+                this.clearSelection()
+                this.root.openFile(books.getBook(item))
+            },
             'load-more': () => books.loadMore(1),
             'load-all': () => books.loadMore(Infinity),
         })
@@ -899,14 +926,32 @@ export const Library = GObject.registerClass({
         this._search_entry.connect('search-changed', entry =>
             this._books_view.search(entry.text))
         this._books_view.connect('selection-changed', (_, count) => {
-            this._selection_count.label = String(count)
-            const visible = count > 0
-            for (const button of [
-                this._selection_count, this._selection_clear, this._selection_read,
-                this._selection_unread, this._selection_remove,
-            ]) button.visible = visible
+            this.#updateSelectionActions(count)
         })
-        this._selection_clear.connect('clicked', () => this._books_view.clearSelection())
+        const filterPopover = new Gtk.Popover({ has_arrow: true })
+        const filterBox = new Gtk.Box({
+            orientation: Gtk.Orientation.VERTICAL,
+            spacing: 6,
+            margin_start: 12, margin_end: 12, margin_top: 12, margin_bottom: 12,
+        })
+        for (const name of ['unread', 'reading', 'read']) {
+            const check = new Gtk.CheckButton({
+                label: name[0].toUpperCase() + name.slice(1),
+            })
+            check.connect('toggled', () =>
+                this._books_view.actionGroup.lookup_action(`filter-${name}`).activate(null))
+            this._books_view.connect(`notify::filter-${name}`,
+                () => check.active = this._books_view[`filter_${name}`])
+            filterBox.append(check)
+        }
+        filterPopover.child = filterBox
+        this._books_view.actionGroup.lookup_action('show-filter')
+            .connect('activate', () => {
+                filterPopover.set_parent(this._library_menu_button)
+                filterPopover.popup()
+            })
+        this.#updateSelectionActions(0)
+        this._selection_clear.connect('clicked', () => this.clearSelection())
         this._selection_read.connect('clicked', () => this.markSelectedRead(true))
         this._selection_unread.connect('clicked', () => this.markSelectedRead(false))
         this._selection_remove.connect('clicked', () => this.removeSelectedBooks())
@@ -948,6 +993,18 @@ export const Library = GObject.registerClass({
         } catch (e) {
             console.error(e)
         }
+    }
+    #updateSelectionActions(count) {
+        this._selection_count.label = String(count)
+        const visible = count > 0
+        for (const button of [
+            this._selection_count, this._selection_clear, this._selection_read,
+            this._selection_unread, this._selection_remove,
+        ]) button.visible = visible
+    }
+    clearSelection() {
+        this._books_view.clearSelection()
+        this.#updateSelectionActions(0)
     }
     focusSearch() {
         this._search_bar.search_mode_enabled = true

@@ -44,31 +44,10 @@
         </item>
       </section>
     </submenu>
-    <submenu>
+    <item>
       <attribute name="label" translatable="yes">Filter</attribute>
-      <section>
-        <item>
-          <attribute name="label" translatable="yes">All Books</attribute>
-          <attribute name="action">library.status-filter</attribute>
-          <attribute name="target">all</attribute>
-        </item>
-        <item>
-          <attribute name="label" translatable="yes">Unread</attribute>
-          <attribute name="action">library.status-filter</attribute>
-          <attribute name="target">unread</attribute>
-        </item>
-        <item>
-          <attribute name="label" translatable="yes">Reading</attribute>
-          <attribute name="action">library.status-filter</attribute>
-          <attribute name="target">reading</attribute>
-        </item>
-        <item>
-          <attribute name="label" translatable="yes">Read</attribute>
-          <attribute name="action">library.status-filter</attribute>
-          <attribute name="target">read</attribute>
-        </item>
-      </section>
-    </submenu>
+      <attribute name="action">library.show-filter</attribute>
+    </item>
   </section>
 </menu>
 <menu id="primary-menu">
@@ -203,7 +182,7 @@
                         </object>
                       </child>
                       <child type="end">
-                        <object class="GtkMenuButton">
+                        <object class="GtkMenuButton" id="library-menu-button">
                           <property name="icon-name">view-more-symbolic</property>
                           <property name="tooltip-text" translatable="yes">Library Menu</property>
                           <property name="menu-model">library-menu</property>
