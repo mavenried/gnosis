@@ -1,36 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?><interface>
 <menu id="menu">
   <section>
-    <item>
-      <attribute name="label" translatable="yes">Open in New Window</attribute>
-      <attribute name="action">book-item.open-new-window</attribute>
-    </item>
-    <item>
-      <attribute name="label" translatable="yes">Open with External App</attribute>
-      <attribute name="action">book-item.open-external-app</attribute>
-    </item>
+    <item><attribute name="label" translatable="yes">Open in New Window</attribute><attribute name="action">book-item.open-new-window</attribute></item>
+    <item><attribute name="label" translatable="yes">Open with External App</attribute><attribute name="action">book-item.open-external-app</attribute></item>
   </section>
   <section>
-    <item>
-      <attribute name="label" translatable="yes">About This Book</attribute>
-      <attribute name="action">book-item.info</attribute>
-    </item>
-    <item>
-      <attribute name="label" translatable="yes">Export Annotations…</attribute>
-      <attribute name="action">book-item.export</attribute>
-    </item>
+    <item><attribute name="label" translatable="yes">About This Book</attribute><attribute name="action">book-item.info</attribute></item>
+    <item><attribute name="label" translatable="yes">Export Annotations…</attribute><attribute name="action">book-item.export</attribute></item>
   </section>
   <section>
-    <item>
-      <attribute name="label" translatable="yes">Toggle Read Status</attribute>
-      <attribute name="action">book-item.toggle-read</attribute>
-    </item>
+    <item><attribute name="label" translatable="yes">Toggle Read Status</attribute><attribute name="action">book-item.toggle-read</attribute></item>
   </section>
   <section>
-    <item>
-      <attribute name="label" translatable="yes">Remove</attribute>
-      <attribute name="action">book-item.remove</attribute>
-    </item>
+    <item><attribute name="label" translatable="yes">Remove</attribute><attribute name="action">book-item.remove</attribute></item>
   </section>
 </menu>
 <template class="FoliateBookItem" parent="GtkBox">
@@ -73,10 +55,9 @@
         </child>
         <child>
           <object class="GtkMenuButton" id="menu-button">
-            <property name="visible">True</property>
             <property name="valign">center</property>
             <property name="icon-name">view-more-horizontal-symbolic</property>
-            <property name="tooltip-text" translatable="yes">Menu</property>"
+            <property name="tooltip-text" translatable="yes">Menu</property>
             <property name="menu-model">menu</property>
             <style><class name="flat"/><class name="circular"/></style>
           </object>
