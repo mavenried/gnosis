@@ -29,6 +29,8 @@ There is no database. Each book's metadata, progress, annotations, and
 bookmarks live in a single JSON file named `<encodeURIComponent(identifier)>.json`.
 Identifiers are derived deterministically from the SHA-256 hash of the normalized file
 path (`gnosis:<sha256>`), ensuring every unique file on disk maps to its own entry.
+Each book JSON also stores `lastReadAt` (milliseconds since the Unix epoch), which
+is updated when a book is opened and drives the Recently Read sorter.
 Cover art is cached as `<encodeURIComponent(identifier)>.png` in
 `$XDG_CACHE_HOME/…`.
 
@@ -70,8 +72,9 @@ reader side).
 
 - **`#readFileMemo`** — `utils.memoize(utils.readJSONFile)`, keyed by
   `Gio.File` object identity. Caches parsed JSON for each book's data file.
-  Cache entries must be evicted (via `#readFileMemo.cache.delete(file)`) when
-  a book's EPUB source is re-imported and the JSON is rewritten.
+  Cache entries must be evicted (via `#readFileMemo.cache.delete(file)`) whenever
+  the JSON is rewritten so progress, annotations, bookmarks, and `lastReadAt`
+  changes are visible to the library models.
 - **`#coverCache`** — `Map<identifier, GdkPixbuf.Pixbuf>`. Must be evicted
   (`#coverCache.delete(identifier)`) at the same time so the newly written PNG
   is read from disk on the next `bind`.
@@ -80,10 +83,12 @@ reader side).
 
 Called whenever a book's JSON file changes. Removes the old `Gio.File` entry
 from the list store and inserts a fresh one at position 0 (most-recently-updated).
+This remove/reinsert behavior currently resets a GTK list/grid scroll anchor;
+in-place model updates are a future improvement.
 Pass `{ invalidateCache: true }` **only** when the EPUB source file was
 actually re-imported (metadata/cover may have changed). Do **not** pass it for
-progress/annotation saves (cover and metadata are unchanged, eviction is
-wasteful).
+ordinary progress/annotation/read-status saves; the JSON cache is still evicted,
+but the cover cache does not need to be.
 
 Call sites that pass `invalidateCache: true`:
 
@@ -95,6 +100,14 @@ Call sites that use the default (`false`):
 
 - `JSONStorage 'modified'` signal in `data.js` (progress/annotation save)
 - `toggleRead` in `library.js`
+
+`LibraryView` uses `Gtk.MultiSelection` for both grid and list views. Ctrl-click
+adds/removes individual books and Shift-click selects a range; opening a book
+clears the selection. Batch read/unread/remove actions are exposed in the library
+header. Each card/row retains its `…` menu, which also opens on right-click.
+
+Status filtering is a dedicated checklist popover with independent Unread,
+Reading, and Read toggles. With no status selected, all books are shown.
 
 ### Refresh pipeline
 
