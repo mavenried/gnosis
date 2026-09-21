@@ -150,15 +150,14 @@ const BookList = GObject.registerClass({
         let isNew = i === -1
         // set to null instead of removing it so we don't mess up the iterator
         if (i !== -1) this.#files[i] = null
-        // remove it from the list if it has been loaded; when the source EPUB
-        // was actually re-imported (invalidateCache=true) also evict the stale
-        // readFile and cover cache entries so the next bind() reads fresh data
+        // JSON data may have changed for any update; cover data only changes
+        // when the source EPUB was actually re-imported.
         for (const [i, el] of utils.gliter(this)) if (el.get_path() === path) {
             isNew = false
+            const identifier = this.#readFileMemo(el)?.metadata?.identifier
+            this.#readFileMemo.cache.delete(el)
             if (invalidateCache) {
-                const identifier = this.#readFileMemo(el)?.metadata?.identifier
                 if (identifier) this.#coverCache.delete(identifier)
-                this.#readFileMemo.cache.delete(el)
             }
             this.remove(i)
         }
@@ -214,6 +213,9 @@ const readingStatus = p => {
     return 'reading'
 }
 
+const logBookAction = (action, file) =>
+    console.debug(`Book action "${action}"`, file?.get_path?.() ?? file)
+
 // a small pie-shaped progress badge on the corner of the cover: a wedge
 // showing how much of the book has been read, or a checkmark once finished
 const drawProgressBadge = (cr, width, height, status, frac) => {
@@ -247,7 +249,7 @@ const drawProgressBadge = (cr, width, height, status, frac) => {
 const BookItem = GObject.registerClass({
     GTypeName: 'FoliateBookItem',
     Template: pkg.moduleuri('ui/book-item.ui'),
-    InternalChildren: ['image', 'progress', 'title', 'author'],
+    InternalChildren: ['image', 'progress', 'title', 'author', 'menu-button'],
     Signals: {
         'open-new-window': { param_types: [Gio.File.$gtype] },
         'remove-book': { param_types: [Gio.File.$gtype] },
@@ -261,12 +263,36 @@ const BookItem = GObject.registerClass({
     constructor(params) {
         super(params)
         this.insert_action_group('book-item', utils.addSimpleActions({
-            'open-new-window': () => this.emit('open-new-window', this.#item),
-            'remove': () => this.emit('remove-book', this.#item),
-            'export': () => this.emit('export-book', this.#item),
-            'info': () => this.emit('book-info', this.#item),
-            'open-external-app': () => this.emit('open-external-app', this.#item),
-            'toggle-read': () => this.emit('toggle-read', this.#item),
+            'open-new-window': () => {
+                logBookAction('open-new-window', this.#item)
+                this.emit('open-new-window', this.#item)
+            },
+            'remove': () => {
+                logBookAction('remove', this.#item)
+                this.emit('remove-book', this.#item)
+            },
+            'export': () => {
+                logBookAction('export', this.#item)
+                this.emit('export-book', this.#item)
+            },
+            'info': () => {
+                logBookAction('info', this.#item)
+                this.emit('book-info', this.#item)
+            },
+            'open-external-app': () => {
+                logBookAction('open-external-app', this.#item)
+                this.emit('open-external-app', this.#item)
+            },
+            'toggle-read': () => {
+                logBookAction('toggle-read', this.#item)
+                this.emit('toggle-read', this.#item)
+            },
+        }))
+        this.add_controller(utils.connect(new Gtk.GestureClick({
+            button: 3,
+            propagation_phase: Gtk.PropagationPhase.CAPTURE,
+        }), {
+            'pressed': () => this._menu_button.popup(),
         }))
     }
     update(item, data, cover) {
@@ -289,6 +315,7 @@ const BookRow = GObject.registerClass({
     InternalChildren: [
         'cover-overlay', 'cover-frame', 'cover-image', 'cover-fallback',
         'title', 'author', 'progress-grid', 'progress-bar', 'progress-label',
+        'menu-button',
     ],
     Signals: {
         'open-new-window': { param_types: [Gio.File.$gtype] },
@@ -303,12 +330,36 @@ const BookRow = GObject.registerClass({
     constructor(params) {
         super(params)
         this.insert_action_group('book-item', utils.addSimpleActions({
-            'open-new-window': () => this.emit('open-new-window', this.#item),
-            'remove': () => this.emit('remove-book', this.#item),
-            'export': () => this.emit('export-book', this.#item),
-            'info': () => this.emit('book-info', this.#item),
-            'open-external-app': () => this.emit('open-external-app', this.#item),
-            'toggle-read': () => this.emit('toggle-read', this.#item),
+            'open-new-window': () => {
+                logBookAction('open-new-window', this.#item)
+                this.emit('open-new-window', this.#item)
+            },
+            'remove': () => {
+                logBookAction('remove', this.#item)
+                this.emit('remove-book', this.#item)
+            },
+            'export': () => {
+                logBookAction('export', this.#item)
+                this.emit('export-book', this.#item)
+            },
+            'info': () => {
+                logBookAction('info', this.#item)
+                this.emit('book-info', this.#item)
+            },
+            'open-external-app': () => {
+                logBookAction('open-external-app', this.#item)
+                this.emit('open-external-app', this.#item)
+            },
+            'toggle-read': () => {
+                logBookAction('toggle-read', this.#item)
+                this.emit('toggle-read', this.#item)
+            },
+        }))
+        this.add_controller(utils.connect(new Gtk.GestureClick({
+            button: 3,
+            propagation_phase: Gtk.PropagationPhase.CAPTURE,
+        }), {
+            'pressed': () => this._menu_button.popup(),
         }))
     }
     update(item, data, cover) {
@@ -361,15 +412,6 @@ const matchString = (x, q) => typeof x === 'string'
 
 const compareStrings = (a, b) => (a || '').localeCompare(b || '')
 
-const getFileMTime = file => {
-    try {
-        return file.query_info('time::modified', Gio.FileQueryInfoFlags.NONE, null)
-            .get_attribute_uint64('time::modified')
-    } catch {
-        return 0
-    }
-}
-
 // foliate-js's `belongsTo.series` is an array for real EPUB3
 // belongs-to-collection metadata, but a single object for the legacy
 // calibre:series fallback (see foliate-js/epub.js) — handle both
@@ -389,6 +431,11 @@ const getSeriesIndex = metadata => {
     const position = typeof item?.position === 'string'
         ? parseFloat(item.position) : item?.position
     return typeof position === 'number' && !isNaN(position) ? position : null
+}
+
+const getBrowseLabel = (kind, value) => {
+    if (value) return value
+    return kind === 'authors' ? _('No Author') : _('No Series')
 }
 
 // missing index sorts before a defined one, matching gnosis's own
@@ -411,10 +458,8 @@ const SORTERS = {
         formatAuthors(books.readFile(b)?.metadata)),
     added: (a, b, books) =>
         (books.readFile(b)?.added ?? 0) - (books.readFile(a)?.added ?? 0),
-    // no per-book "last read" timestamp is tracked; the book's JSON file is
-    // rewritten every time reading progress is saved, so its mtime doubles
-    // as a "last read" signal without needing to hook into the reader
-    read: (a, b) => getFileMTime(b) - getFileMTime(a),
+    read: (a, b, books) =>
+        (books.readFile(b)?.lastReadAt ?? 0) - (books.readFile(a)?.lastReadAt ?? 0),
     series: (a, b, books) => {
         const ma = books.readFile(a)?.metadata, mb = books.readFile(b)?.metadata
         const sa = getSeries(ma), sb = getSeries(mb)
@@ -438,6 +483,7 @@ GObject.registerClass({
         'load-more': { return_type: GObject.TYPE_BOOLEAN },
         'load-all': {},
         'activate': { param_types: [GObject.TYPE_OBJECT] },
+        'selection-changed': { param_types: [GObject.TYPE_UINT] },
     },
 }, class extends Gtk.Stack {
     #done = false
@@ -455,6 +501,7 @@ GObject.registerClass({
         { 'items-changed': () => this.#update() })
     #sorter = new Gtk.CustomSorter()
     #sortModel = new Gtk.SortListModel({ model: this.#filterModel, sorter: this.#sorter })
+    #selection
     #itemConnections = {
         'open-new-window': (_, file) => this.root.addWindow(getBooks().getBook(file)),
         'remove-book': (_, file) => this.removeBook(file),
@@ -504,11 +551,14 @@ GObject.registerClass({
     }
     showGrid() {
         this._scrolled.child?.unparent()
+        this.#selection = new Gtk.MultiSelection({ model: this.#sortModel })
+        this.#selection.connect('selection-changed', selection =>
+            this.emit('selection-changed', selection.get_selection().get_size()))
         this._scrolled.child = utils.connect(new Gtk.GridView({
-            single_click_activate: true,
+            single_click_activate: false,
             max_columns: 20,
             vscroll_policy: Gtk.ScrollablePolicy.NATURAL,
-            model: new Gtk.NoSelection({ model: this.#sortModel }),
+            model: this.#selection,
             factory: utils.connect(new Gtk.SignalListItemFactory(), {
                 'setup': (_, item) => item.child =
                     utils.connect(new BookItem(), this.#itemConnections),
@@ -520,16 +570,21 @@ GObject.registerClass({
                         .catch(e => console.warn(e))
                 },
             }),
-        }), { 'activate': (_, pos) =>
-            this.emit('activate', this.#sortModel.get_item(pos)) })
+        }), { 'activate': (_, pos) => {
+            const item = this.#sortModel.get_item(pos)
+            if (item) this.emit('activate', item)
+        }})
         this._scrolled.child.remove_css_class('view')
     }
     showList() {
         this._scrolled.child?.unparent()
+        this.#selection = new Gtk.MultiSelection({ model: this.#sortModel })
+        this.#selection.connect('selection-changed', selection =>
+            this.emit('selection-changed', selection.get_selection().get_size()))
         this._scrolled.child = new Adw.ClampScrollable({
             child: utils.connect(utils.addClass(new Gtk.ListView({
-                single_click_activate: true,
-                model: new Gtk.NoSelection({ model: this.#sortModel }),
+                single_click_activate: false,
+                model: this.#selection,
                 factory: utils.connect(new Gtk.SignalListItemFactory(), {
                     'setup': (_, item) => item.child = utils.connect(
                         new BookRow(), this.#itemConnections),
@@ -541,8 +596,10 @@ GObject.registerClass({
                             .catch(e => console.warn(e))
                     },
                 }),
-            }), 'book-list'), { 'activate': (_, pos) =>
-                this.emit('activate', this.#sortModel.get_item(pos)) }),
+            }), 'book-list'), { 'activate': (_, pos) => {
+                const item = this.#sortModel.get_item(pos)
+                if (item) this.emit('activate', item)
+            }}),
         })
     }
     #getData(file, getCover) {
@@ -551,6 +608,26 @@ GObject.registerClass({
         const identifier = data?.metadata?.identifier
         const cover = getCover && identifier ? books.readCover(identifier) : null
         return { cover, data }
+    }
+    getSelectedItems() {
+        if (!this.#selection) return []
+        const items = []
+        for (let i = 0; i < this.#sortModel.get_n_items(); i++)
+            if (this.#selection.is_selected(i))
+                items.push(this.#sortModel.get_item(i))
+        return items
+    }
+    clearSelection() {
+        this.#selection?.unselect_all()
+    }
+    restoreSelection(items) {
+        if (!this.#selection) return
+        const paths = new Set(items.map(item => item.get_path()))
+        this.#selection.unselect_all()
+        for (let i = 0; i < this.#sortModel.get_n_items(); i++) {
+            const item = this.#sortModel.get_item(i)
+            if (item && paths.has(item.get_path())) this.#selection.select_item(i, false)
+        }
     }
     search(text) {
         const q = text.trim().toLowerCase()
@@ -602,16 +679,43 @@ GObject.registerClass({
     clearBrowseFilter() {
         this.#browseFilter.set_filter_func(null)
     }
+    setRead(file, read) {
+        console.debug('Setting read status', read, file?.get_path?.() ?? file)
+        const books = getBooks()
+        const data = books.readFile(file)
+        const identifier = decodeURIComponent(file.get_basename().replace('.json', ''))
+        const storage = new utils.JSONStorage(pkg.datadir, identifier)
+        const total = data?.progress?.[1] || 1
+        storage.set('progress', read ? [total, total] : null, false)
+        if (!read) storage.set('lastLocation', null, false)
+        storage.saveNow()
+        console.debug('Saved read status', storage.path)
+        books.update(storage.path)
+    }
     toggleRead(file) {
+        console.debug('Toggling read status', file?.get_path?.() ?? file)
         const books = getBooks()
         const data = books.readFile(file)
         const status = readingStatus(data?.progress)
-        const total = data?.progress?.[1] || 1
-        const identifier = decodeURIComponent(file.get_basename().replace('.json', ''))
-        const storage = new utils.JSONStorage(pkg.datadir, identifier)
-        storage.set('progress', status === 'read' ? [0, total] : [total, total], false)
-        storage.saveNow()
-        books.update(storage.path)
+        console.debug('Current reading status', status, data?.progress)
+        this.setRead(file, status !== 'read')
+    }
+    removeSelectedBooks() {
+        const files = this._books_view.getSelectedItems()
+        const dialog = new Adw.AlertDialog({
+            heading: _('Remove Selected Books?'),
+            body: format.vprintf(_('Reading progress, annotations, and bookmarks for %d books will be permanently lost'),
+                [files.length]),
+        })
+        dialog.add_response('cancel', _('_Cancel'))
+        dialog.add_response('remove', _('_Remove'))
+        dialog.set_response_appearance('remove', Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.present(this.get_root())
+        dialog.connect('response', (_, response) => {
+            if (response !== 'remove') return
+            for (const file of files) getBooks().delete(file)
+            this._books_view.clearSelection()
+        })
     }
     removeBook(file) {
         const dialog = new Adw.AlertDialog({
@@ -725,6 +829,8 @@ export const Library = GObject.registerClass({
         'sidebar-list-box', 'main-stack',
         'library-toolbar-view',
         'books-view', 'search-bar', 'search-entry',
+        'selection-count', 'selection-clear', 'selection-read', 'selection-unread',
+        'selection-remove',
         'browse-toolbar-view', 'browse-title', 'browse-list-box',
         'refresh-revealer', 'refresh-label', 'library-title',
     ],
@@ -792,10 +898,30 @@ export const Library = GObject.registerClass({
         this._search_bar.connect_entry(this._search_entry)
         this._search_entry.connect('search-changed', entry =>
             this._books_view.search(entry.text))
+        this._books_view.connect('selection-changed', (_, count) => {
+            this._selection_count.label = String(count)
+            const visible = count > 0
+            for (const button of [
+                this._selection_count, this._selection_clear, this._selection_read,
+                this._selection_unread, this._selection_remove,
+            ]) button.visible = visible
+        })
+        this._selection_clear.connect('clicked', () => this._books_view.clearSelection())
+        this._selection_read.connect('clicked', () => this.markSelectedRead(true))
+        this._selection_unread.connect('clicked', () => this.markSelectedRead(false))
+        this._selection_remove.connect('clicked', () => this.removeSelectedBooks())
 
         this.insert_action_group('library', this._books_view.actionGroup)
         this.add_controller(utils.addShortcuts({
+            'Escape': () => {
+                if (!this._books_view.getSelectedItems().length) return false
+                this._books_view.clearSelection()
+                return true
+            },
+        }))
+        this.add_controller(utils.addShortcuts({
             '<ctrl>r': () => (this.refreshLibrary(), true),
+            '<ctrl>f|slash': () => (this.focusSearch(), true),
         }))
         // Delay refresh to allow UI to initialize, then check if enabled
         GLib.timeout_add(GLib.PRIORITY_LOW, 2000, () => {
@@ -823,6 +949,16 @@ export const Library = GObject.registerClass({
             console.error(e)
         }
     }
+    focusSearch() {
+        this._search_bar.search_mode_enabled = true
+        this._search_entry.grab_focus()
+    }
+    markSelectedRead(read) {
+        const files = this._books_view.getSelectedItems()
+        for (const file of files)
+            this._books_view.setRead(file, read)
+        this._books_view.restoreSelection(files)
+    }
     showSettings() {
         this._sidebar_list_box.select_row(null)
         const dialog = new SettingsDialog()
@@ -836,11 +972,14 @@ export const Library = GObject.registerClass({
         for (const [, file] of utils.gliter(books)) {
             const { metadata } = books.readFile(file) ?? {}
             const value = kind === 'authors' ? formatAuthors(metadata) : getSeries(metadata)
-            if (!value) continue
             counts.set(value, (counts.get(value) ?? 0) + 1)
         }
         const groups = Array.from(counts, ([name, count]) => ({ name, count }))
-            .sort((a, b) => a.name.localeCompare(b.name))
+            .sort((a, b) => {
+                if (!a.name && b.name) return -1
+                if (a.name && !b.name) return 1
+                return a.name.localeCompare(b.name)
+            })
 
         let child = this._browse_list_box.get_first_child()
         while (child) {
@@ -855,7 +994,7 @@ export const Library = GObject.registerClass({
                 margin_top: 9, margin_bottom: 9,
             })
             box.append(new Gtk.Label({
-                label: name, xalign: 0, hexpand: true,
+                label: getBrowseLabel(kind, name), xalign: 0, hexpand: true,
                 ellipsize: Pango.EllipsizeMode.END,
             }))
             box.append(utils.addClass(new Gtk.Label({

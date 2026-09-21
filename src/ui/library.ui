@@ -216,6 +216,44 @@
                           <property name="active" bind-source="search-bar" bind-property="search-mode-enabled" bind-flags="sync-create|bidirectional"/>
                         </object>
                       </child>
+                      <child type="end">
+                        <object class="GtkButton" id="selection-remove">
+                          <property name="icon-name">user-trash-symbolic</property>
+                          <property name="tooltip-text" translatable="yes">Remove Selected Books</property>
+                          <property name="visible">false</property>
+                          <style><class name="destructive-action"/></style>
+                        </object>
+                      </child>
+                      <child type="end">
+                        <object class="GtkButton" id="selection-unread">
+                          <property name="icon-name">mail-unread-symbolic</property>
+                          <property name="tooltip-text" translatable="yes">Mark Selected Books Unread</property>
+                          <property name="visible">false</property>
+                        </object>
+                      </child>
+                      <child type="end">
+                        <object class="GtkButton" id="selection-read">
+                          <property name="icon-name">object-select-symbolic</property>
+                          <property name="tooltip-text" translatable="yes">Mark Selected Books Read</property>
+                          <property name="visible">false</property>
+                        </object>
+                      </child>
+                      <child type="end">
+                        <object class="GtkLabel" id="selection-count">
+                          <property name="label">0</property>
+                          <property name="visible">false</property>
+                          <property name="width-chars">2</property>
+                          <property name="xalign">0.5</property>
+                          <style><class name="dim-label"/></style>
+                        </object>
+                      </child>
+                      <child type="end">
+                        <object class="GtkButton" id="selection-clear">
+                          <property name="icon-name">window-close-symbolic</property>
+                          <property name="tooltip-text" translatable="yes">Clear Selection</property>
+                          <property name="visible">false</property>
+                        </object>
+                      </child>
                     </object>
                   </child>
                   <child type="top">
