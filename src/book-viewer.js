@@ -415,7 +415,7 @@ GObject.registerClass({
     mediaOverlaySetVolume(x) { return this.#exec('reader.view.mediaOverlay.setVolume', x) }
     mediaOverlaySetRate(x) { return this.#exec('reader.view.mediaOverlay.setRate', x) }
     getCover() { return this.#exec('reader.getCover').then(utils.base64ToPixbuf) }
-    init(x) { return this.#exec('reader.view.init', x) }
+    init(x) { return this.#exec('reader.initView', x) }
     get webView() { return this.#webView }
     grab_focus() { return this.#webView.grab_focus() }
 })
@@ -448,6 +448,23 @@ export const makeIdentifier = file => {
     }
 }
 
+const getSeriesName = metadata => {
+    const series = metadata?.belongsTo?.series
+    if (!series) return ''
+    const item = Array.isArray(series) ? series[0] : series
+    return formatLanguageMap(item?.name) || ''
+}
+
+const normalizeLibraryMetadata = metadata => {
+    const normalized = metadata ?? {}
+    if (!formatAuthors(normalized)) normalized.author = ''
+    if (!getSeriesName(normalized)) {
+        normalized.belongsTo ??= {}
+        normalized.belongsTo.series = ''
+    }
+    return normalized
+}
+
 // `onProgress(done, total)` fires after each file settles, for a caller
 // that wants to show progress (e.g. the library's corner refresh indicator)
 export const importFiles = (files, { onProgress } = {}) => {
@@ -464,6 +481,7 @@ export const importFiles = (files, { onProgress } = {}) => {
             (req.select_files([encodeURI(currentFile.get_path())]), true),
     })
     const save = async book => {
+        book.metadata = normalizeLibraryMetadata(book.metadata)
         book.metadata.identifier = makeIdentifier(currentFile)
         const { identifier } = book.metadata
         if (!identifier) throw new Error('Could not get identifier')
@@ -474,6 +492,8 @@ export const importFiles = (files, { onProgress } = {}) => {
         // rescans), which must not reset when it was first added
         if (data.storage.get('added', null) == null)
             data.storage.set('added', Date.now(), false)
+        if (data.storage.get('lastReadAt', undefined) === undefined)
+            data.storage.set('lastReadAt', null, false)
         data.saveURI(currentFile)
         const sourceStale = data.isSourceStale(currentFile)
         const cover = await webView.exec('reader.getCover').then(utils.base64ToPixbuf)
@@ -809,7 +829,7 @@ export const BookViewer = GObject.registerClass({
     async #onBookReady({ book, reader }) {
         this._top_overlay_box.hide()
         this.#book = book
-        book.metadata ??= {}
+        book.metadata = normalizeLibraryMetadata(book.metadata)
         this._book_title.label = formatLanguageMap(book.metadata.title)
         this._book_author.label = formatAuthors(book.metadata)
         this._book_author.visible = !!this._book_author.label
@@ -862,6 +882,7 @@ export const BookViewer = GObject.registerClass({
             updateAnnotations()
             updateBookmarks()
             this.#data.storage.set('metadata', book.metadata)
+            this.#data.storage.set('lastReadAt', Date.now())
             this.#data.saveURI(this.#file)
             const sourceStale = this.#data.isSourceStale(this.#file)
             if (cover) this.#data.saveCover(cover, sourceStale)

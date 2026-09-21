@@ -81,17 +81,9 @@ export const importFromGnosis = async dbPath => {
                 [Math.round(fraction * GNOSIS_PROGRESS_TOTAL), GNOSIS_PROGRESS_TOTAL], false)
             if (row.locator) storage.set('lastLocation', row.locator, false)
             if (row.added_at) storage.set('added', row.added_at * 1000, false)
+            storage.set('lastReadAt', row.last_opened_at ? row.last_opened_at * 1000 : null, false)
             storage.saveNow()
 
-            // backdate the file so "recently added"/"recently read" sort
-            // order reflects gnosis's timestamps instead of "just now"
-            const mtime = row.last_opened_at || row.added_at
-            if (mtime) try {
-                Gio.File.new_for_path(storage.path).set_attribute_uint64(
-                    'time::modified', mtime, Gio.FileQueryInfoFlags.NONE, null)
-            } catch (e) {
-                console.warn(e)
-            }
             getBookList()?.update(storage.path, { invalidateCache: true })
             imported++
         })

@@ -282,6 +282,11 @@ class Reader {
         document.body.append(this.view)
         this.sectionFractions = this.view.getSectionFractions()
     }
+    async initView(options) {
+        await this.view.init(options)
+        if (!this.view.renderer.getContents().length)
+            await this.view.next()
+    }
     setAppearance({ style, layout, autohideCursor }) {
         Object.assign(this.style, style)
         const { theme } = style
