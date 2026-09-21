@@ -259,6 +259,7 @@ const ApplicationWindow = GObject.registerClass({
             this.#library = new Library()
             this.#stack.add_child(this.#library)
         }
+        this.#library.clearSelection()
         this.#stack.transition_type = Gtk.StackTransitionType.SLIDE_RIGHT
         this.#stack.visible_child = this.#library
         if (this.#bookViewer) {

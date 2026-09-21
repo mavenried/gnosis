@@ -1116,9 +1116,11 @@ export const BookViewer = GObject.registerClass({
         this._navbar.tts_box.kill()
         this._view.viewSettings.unbindSettings()
         this._view.fontSettings.unbindSettings()
-        utils.disconnectWith(this, this.#data.annotations)
-        utils.disconnectWith(this, this.#data.bookmarks)
-        dataStore.delete(this._view)
+        if (this.#data) {
+            utils.disconnectWith(this, this.#data.annotations)
+            utils.disconnectWith(this, this.#data.bookmarks)
+            dataStore.delete(this._view)
+        }
 
         // it seems that it's necessary to explicitly destroy web view
         this._view.webView.unparent()
